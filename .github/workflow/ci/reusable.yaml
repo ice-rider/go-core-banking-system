@@ -1,0 +1,222 @@
+name: Reusable CI
+
+on:
+  workflow_call:
+    inputs:
+      image_tag:
+        required: true
+        type: string
+      push_latest:
+        required: false
+        type: boolean
+        default: false
+      push_dev:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      ghcr_token:
+        required: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.6
+          only-new-issues: true
+          args: --out-format=github-actions,line-number
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+  build_and_test:
+    runs-on: ubuntu-latest
+    needs: [lint, security]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: true
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Check formatting
+        run: |
+          gofmt -l -s .
+          if [ -n "$(gofmt -l -s .)" ]; then
+            echo "❌ Files are not formatted. Run 'gofmt -w .' to fix."
+            exit 1
+          fi
+
+      - name: Run tests with coverage
+        run: |
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+          go tool cover -func=coverage.txt
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Build
+        run: go build -v ./...
+
+  check_conflicts:
+    runs-on: ubuntu-latest
+    outputs:
+      has_conflicts: ${{ steps.check.outputs.has_conflicts }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for merge conflicts
+        id: check
+        run: |
+          if git ls-files -u | grep -q .; then
+            echo "has_conflicts=true" >> $GITHUB_OUTPUT
+            echo "❌ Merge conflicts detected!"
+            exit 1
+          else
+            echo "has_conflicts=false" >> $GITHUB_OUTPUT
+            echo "✅ No merge conflicts"
+          fi
+
+  build_docker:
+    runs-on: ubuntu-latest
+    needs: [build_and_test, check_conflicts]
+    if: needs.check_conflicts.outputs.has_conflicts == 'false'
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.ghcr_token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ inputs.image_tag }}
+            ${{ inputs.push_latest && format('ghcr.io/{0}/{1}:latest', github.repository_owner, github.event.repository.name) || '' }}
+            ${{ inputs.push_dev && format('ghcr.io/{0}/{1}:dev', github.repository_owner, github.event.repository.name) || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          docker run --rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }} --version
+
+  comment_result:
+    runs-on: ubuntu-latest
+    needs: [lint, security, build_and_test, check_conflicts, build_docker]
+    if: always()
+    steps:
+      - name: Comment PR with status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const lintStatus = '${{ needs.lint.result }}';
+            const securityStatus = '${{ needs.security.result }}';
+            const testStatus = '${{ needs.build_and_test.result }}';
+            const conflictStatus = '${{ needs.check_conflicts.result }}';
+            const dockerStatus = '${{ needs.build_docker.result }}';
+
+            let message = '## CI Pipeline Results\n\n';
+            message += `### ✅ Linting: ${lintStatus === 'success' ? '✅ Passed' : '❌ Failed'}\n`;
+            message += `### 🔒 Security: ${securityStatus === 'success' ? '✅ Passed' : '❌ Failed'}\n`;
+            message += `### 🧪 Tests: ${testStatus === 'success' ? '✅ Passed' : '❌ Failed'}\n`;
+            message += `### 🔀 Merge Conflicts: ${conflictStatus === 'success' ? '✅ None' : '❌ Conflicts detected'}\n`;
+
+            if (testStatus === 'success') {
+              message += `- Coverage report uploaded to Codecov\n`;
+            }
+
+            if (dockerStatus === 'success') {
+              const tag = '${{ needs.build_docker.outputs.image_tag }}';
+              message += `### 🐳 Docker: ✅ Built and pushed\n`;
+              message += `- Image tag: \`${tag}\`\n`;
+              message += `- Image SHA: \`${{ github.sha }}\`\n`;
+            } else if (dockerStatus === 'failure') {
+              message += `### 🐳 Docker: ❌ Build failed\n`;
+            } else {
+              message += `### 🐳 Docker: ⏭️ Skipped (due to conflicts or other failures)\n`;
+            }
+
+            const allPassed = lintStatus === 'success' && securityStatus === 'success' &&
+                              testStatus === 'success' && conflictStatus === 'success' &&
+                              (dockerStatus === 'success' || dockerStatus === 'skipped');
+
+            if (allPassed) {
+              message += `\n## ✅ All checks passed!`;
+              if (dockerStatus === 'success') {
+                const tag = '${{ needs.build_docker.outputs.image_tag }}';
+                message += `\nDocker image \`${tag}\` is ready for deployment.`;
+              }
+            } else {
+              message += `\n## ❌ Some checks failed!\n`;
+              const failed = [];
+              if (lintStatus !== 'success') failed.push('Linting');
+              if (securityStatus !== 'success') failed.push('Security');
+              if (testStatus !== 'success') failed.push('Tests');
+              if (conflictStatus !== 'success') failed.push('Merge Conflicts');
+              if (dockerStatus === 'failure') failed.push('Docker');
+              message += `\nFailed: **${failed.join(', ')}**\n`;
+              message += `\nCheck workflow logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('## CI Pipeline Results')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: message,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: message,
+              });
+            }
