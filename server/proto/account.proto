@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package account;
+
+option go_package = "go-core-banking-system/pkg/proto/account";
+
+service AccountService {
+  rpc Create(CreateAccountRequest) returns (AccountResponse);
+  rpc GetByID(GetAccountRequest) returns (AccountResponse);
+  rpc Block(BlockAccountRequest) returns (Empty);
+  rpc Unblock(UnblockAccountRequest) returns (Empty);
+  rpc Close(CloseAccountRequest) returns (Empty);
+  rpc Reserve(ReserveRequest) returns (Empty);
+  rpc Credit(CreditRequest) returns (Empty);
+  rpc Debit(DebitRequest) returns (Empty);
+  rpc CommitReservation(CommitReservationRequest) returns (Empty);
+  rpc CancelReservation(CancelReservationRequest) returns (Empty);
+}
+
+message CreateAccountRequest {
+  string owner_name = 1;
+}
+
+message GetAccountRequest {
+  string id = 1;
+}
+
+message BlockAccountRequest {
+  string id = 1;
+}
+
+message UnblockAccountRequest {
+  string id = 1;
+}
+
+message CloseAccountRequest {
+  string id = 1;
+}
+
+message ReserveRequest {
+  string id = 1;
+  int64 amount = 2;
+}
+
+message CreditRequest {
+  string id = 1;
+  int64 amount = 2;
+}
+
+message DebitRequest {
+  string id = 1;
+  int64 amount = 2;
+}
+
+message CommitReservationRequest {
+  string id = 1;
+  int64 amount = 2;
+}
+
+message CancelReservationRequest {
+  string id = 1;
+  int64 amount = 2;
+}
+
+message AccountResponse {
+  string id = 1;
+  string owner_name = 2;
+  int64 balance = 3;
+  string status = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}
+
+message Empty {}
