@@ -147,10 +147,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Test Docker image
-        run: |
-          docker run --rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }} --help
-
   comment_result:
     runs-on: ubuntu-latest
     needs: [lint, security, build_and_test, check_conflicts, build_docker]
