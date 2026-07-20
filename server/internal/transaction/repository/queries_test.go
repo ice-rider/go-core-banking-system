@@ -42,10 +42,10 @@ func TestQueryConstant_GetTransactionByIDempotencyKey(t *testing.T) {
 
 func TestAllQueries_NonEmpty(t *testing.T) {
 	queries := map[string]string{
-		"queryCreateTransaction":                   queryCreateTransaction,
-		"queryGetTransactionByID":                 queryGetTransactionByID,
-		"queryUpdateTransactionStatus":             queryUpdateTransactionStatus,
-		"queryGetTransactionByIDempotencyKey":     queryGetTransactionByIDempotencyKey,
+		"queryCreateTransaction":              queryCreateTransaction,
+		"queryGetTransactionByID":             queryGetTransactionByID,
+		"queryUpdateTransactionStatus":        queryUpdateTransactionStatus,
+		"queryGetTransactionByIDempotencyKey": queryGetTransactionByIDempotencyKey,
 	}
 
 	for name, q := range queries {

@@ -82,17 +82,17 @@ func TestQueryConstant_CloseAtomically(t *testing.T) {
 
 func TestAllQueryConstantsAreDefined(t *testing.T) {
 	queries := map[string]string{
-		"queryCreateAccount":        queryCreateAccount,
-		"queryGetAccountByID":       queryGetAccountByID,
-		"queryUpdateAccountStatus":  queryUpdateAccountStatus,
-		"queryReserve":              queryReserve,
-		"queryCredit":               queryCredit,
-		"queryDebit":                queryDebit,
-		"queryCommitReservation":    queryCommitReservation,
-		"queryCancelReservation":    queryCancelReservation,
-		"queryBlockAtomically":      queryBlockAtomically,
-		"queryUnblockAtomically":    queryUnblockAtomically,
-		"queryCloseAtomically":      queryCloseAtomically,
+		"queryCreateAccount":       queryCreateAccount,
+		"queryGetAccountByID":      queryGetAccountByID,
+		"queryUpdateAccountStatus": queryUpdateAccountStatus,
+		"queryReserve":             queryReserve,
+		"queryCredit":              queryCredit,
+		"queryDebit":               queryDebit,
+		"queryCommitReservation":   queryCommitReservation,
+		"queryCancelReservation":   queryCancelReservation,
+		"queryBlockAtomically":     queryBlockAtomically,
+		"queryUnblockAtomically":   queryUnblockAtomically,
+		"queryCloseAtomically":     queryCloseAtomically,
 	}
 
 	for name, query := range queries {
