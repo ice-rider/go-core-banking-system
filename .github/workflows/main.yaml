@@ -12,4 +12,4 @@ jobs:
       push_latest: false
       push_dev: false
     secrets:
-      ghcr_token: ${{ secrets.GITHUB_TOKEN }}
+      ghcr_token: ${{ secrets.GHCR_TOKEN }}
