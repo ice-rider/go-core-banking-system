@@ -701,7 +701,7 @@ func TestCreateTransfer(t *testing.T) {
 						return &pb_transaction.TransactionResponse{
 							Id: "tx-1", FromAccountId: "550e8400-e29b-41d4-a716-446655440001",
 							ToAccountId: "550e8400-e29b-41d4-a716-446655440002",
-							Amount: 100, Status: "completed", IdempotencyKey: "550e8400-e29b-41d4-a716-446655440003",
+							Amount:      100, Status: "completed", IdempotencyKey: "550e8400-e29b-41d4-a716-446655440003",
 							CreatedAt: "2024-01-01T00:00:00Z", UpdatedAt: "2024-01-01T00:00:00Z",
 						}, nil
 					},
