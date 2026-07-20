@@ -41,7 +41,7 @@ jobs:
         if: steps.find_pr.outputs.pr
         uses: hmarr/auto-approve-action@v4
         with:
-          pr-number: ${{ steps.find_pr.outputs.pr }}
+          pull-request-number: ${{ steps.find_pr.outputs.pr }}
           review-message: "✅ All CI checks passed! Auto-approved."
 
       - name: Add ready-to-merge label
@@ -52,14 +52,14 @@ jobs:
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: ${{ steps.find_pr.outputs.pr }},
+              issue_number: parseInt('${{ steps.find_pr.outputs.pr }}'),
               labels: ['ready-to-merge', 'ci-passed']
             });
             try {
               await github.rest.issues.removeLabel({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: ${{ steps.find_pr.outputs.pr }},
+                issue_number: parseInt('${{ steps.find_pr.outputs.pr }}'),
                 name: 'WIP'
               });
             } catch (e) {}
