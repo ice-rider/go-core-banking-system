@@ -32,7 +32,6 @@ jobs:
           version: v2.6
           working-directory: server
           only-new-issues: true
-          args: --output.format=github-actions
 
   security:
     runs-on: ubuntu-latest
