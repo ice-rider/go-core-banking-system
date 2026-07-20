@@ -14,9 +14,6 @@ on:
         required: false
         type: boolean
         default: false
-    secrets:
-      ghcr_token:
-        required: true
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
@@ -134,7 +131,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.ghcr_token }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
         id: build

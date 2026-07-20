@@ -7,10 +7,12 @@ on:
 
 jobs:
   ci:
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/reusable.yaml
     with:
       image_tag: latest
       push_latest: true
       push_dev: false
-    secrets:
-      ghcr_token: ${{ secrets.GHCR_TOKEN }}
+    secrets: inherit

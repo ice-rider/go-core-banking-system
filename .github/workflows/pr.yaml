@@ -15,13 +15,13 @@ jobs:
       contents: read
       pull-requests: write
       checks: write
+      packages: write
     uses: ./.github/workflows/reusable.yaml
     with:
       image_tag: ${{ github.event.pull_request.head.ref || github.ref_name }}
       push_latest: false
       push_dev: false
-    secrets:
-      ghcr_token: ${{ secrets.GHCR_TOKEN }}
+    secrets: inherit
 
   auto_approve:
     runs-on: ubuntu-latest
