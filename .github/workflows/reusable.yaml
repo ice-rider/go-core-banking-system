@@ -18,6 +18,9 @@ on:
       ghcr_token:
         required: true
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -117,6 +120,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Sanitize image tag
+        id: tag
+        run: |
+          RAW="${{ inputs.image_tag }}"
+          echo "image_tag=${RAW//\//-}" >> $GITHUB_OUTPUT
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -132,7 +141,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ inputs.image_tag }}
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ steps.tag.outputs.image_tag }}
             ${{ inputs.push_latest && format('ghcr.io/{0}/{1}:latest', github.repository_owner, github.event.repository.name) || '' }}
             ${{ inputs.push_dev && format('ghcr.io/{0}/{1}:dev', github.repository_owner, github.event.repository.name) || '' }}
           cache-from: type=gha
@@ -200,9 +209,23 @@ jobs:
               message += `\nCheck workflow logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
             }
 
-            const issueNumber = context.issue.number;
+            let issueNumber = context.issue.number;
+
             if (!issueNumber) {
-              core.info('No issue number found (push event), skipping PR comment');
+              const headRef = context.ref.replace('refs/heads/', '');
+              const { data: prs } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                head: `${context.repo.owner}:${headRef}`,
+                state: 'open'
+              });
+              if (prs.length > 0) {
+                issueNumber = prs[0].number;
+              }
+            }
+
+            if (!issueNumber) {
+              core.info('No PR found, skipping comment');
               core.summary.addRaw(message);
               return;
             }
