@@ -1,0 +1,51 @@
+# docker-compose.test.yml - для интеграционных тестов
+# Использование: docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d
+# Тесты: cd server && go test -tags=integration ./...
+
+services:
+  account-service:
+    build:
+      context: .
+      dockerfile: server/cmd/account-service/Dockerfile
+    environment:
+      - DB_HOST=postgres-account
+      - DB_PORT=5432
+      - DB_USER=bank
+      - DB_PASSWORD=bank_secret
+      - DB_NAME=account_db
+      - GRPC_PORT=9001
+    depends_on:
+      postgres-account:
+        condition: service_healthy
+    networks:
+      - bank-network
+
+  transaction-service:
+    build:
+      context: .
+      dockerfile: server/cmd/transaction-service/Dockerfile
+    environment:
+      - DB_HOST=postgres-transaction
+      - DB_PORT=5432
+      - DB_USER=bank
+      - DB_PASSWORD=bank_secret
+      - DB_NAME=transaction_db
+      - GRPC_PORT=9002
+      - ACCOUNT_SERVICE_ADDR=account-service:9001
+      - RABBITMQ_ADDR=amqp://bank:bank_secret@rabbitmq:5672/
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      postgres-transaction:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bank-network
+
+  postgres-account:
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  postgres-transaction:
+    tmpfs:
+      - /var/lib/postgresql/data

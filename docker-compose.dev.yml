@@ -1,0 +1,117 @@
+# docker-compose.dev.yml - для локальной разработки
+# Использование: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  nginx:
+    image: nginx:1.31-alpine
+    ports:
+      - "8081:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api-gateway
+    networks:
+      - bank-network
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: server/cmd/api-gateway/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ACCOUNT_SERVICE_ADDR=account-service:9001
+      - TRANSACTION_SERVICE_ADDR=transaction-service:9002
+      - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+    depends_on:
+      - account-service
+      - transaction-service
+    networks:
+      - bank-network
+
+  account-service:
+    build:
+      context: .
+      dockerfile: server/cmd/account-service/Dockerfile
+    environment:
+      - DB_HOST=postgres-account
+      - DB_PORT=5432
+      - DB_USER=bank
+      - DB_PASSWORD=bank_secret
+      - DB_NAME=account_db
+      - GRPC_PORT=9001
+      - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+    depends_on:
+      postgres-account:
+        condition: service_healthy
+    networks:
+      - bank-network
+
+  transaction-service:
+    build:
+      context: .
+      dockerfile: server/cmd/transaction-service/Dockerfile
+    environment:
+      - DB_HOST=postgres-transaction
+      - DB_PORT=5432
+      - DB_USER=bank
+      - DB_PASSWORD=bank_secret
+      - DB_NAME=transaction_db
+      - GRPC_PORT=9002
+      - ACCOUNT_SERVICE_ADDR=account-service:9001
+      - RABBITMQ_ADDR=amqp://bank:bank_secret@rabbitmq:5672/
+      - REDIS_ADDR=redis:6379
+      - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+    depends_on:
+      postgres-transaction:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bank-network
+
+  postgres-account:
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgaccount_data:/var/lib/postgresql/data
+
+  postgres-transaction:
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgtransaction_data:/var/lib/postgresql/data
+
+  redis:
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  jaeger:
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "4317:4317"
+      - "4318:4318"
+
+  prometheus:
+    ports:
+      - "9090:9090"
+
+  grafana:
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgaccount_data:
+  pgtransaction_data:
+  redis_data:
+  rabbitmq_data:

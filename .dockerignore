@@ -1,0 +1,9 @@
+.git
+.github
+docs
+client
+*.md
+LICENSE
+Makefile
+nginx
+configs
