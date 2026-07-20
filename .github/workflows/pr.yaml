@@ -29,30 +29,37 @@ jobs:
     if: |
       always() &&
       needs.ci.result == 'success' &&
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.user.login != 'dependabot[bot]' &&
       github.actor != 'dependabot[bot]'
     steps:
+      - name: Find PR number
+        id: find_pr
+        uses: jwalton/gh-find-current-pr@v1
+        with:
+          state: open
+
       - name: Auto-approve PR
+        if: steps.find_pr.outputs.pr
         uses: hmarr/auto-approve-action@v4
         with:
+          pr-number: ${{ steps.find_pr.outputs.pr }}
           review-message: "✅ All CI checks passed! Auto-approved."
 
       - name: Add ready-to-merge label
+        if: steps.find_pr.outputs.pr
         uses: actions/github-script@v7
         with:
           script: |
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: ${{ steps.find_pr.outputs.pr }},
               labels: ['ready-to-merge', 'ci-passed']
             });
             try {
               await github.rest.issues.removeLabel({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.issue.number,
+                issue_number: ${{ steps.find_pr.outputs.pr }},
                 name: 'WIP'
               });
             } catch (e) {}
