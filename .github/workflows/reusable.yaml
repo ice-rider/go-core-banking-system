@@ -30,8 +30,9 @@ jobs:
         uses: golangci/golangci-lint-action@v8
         with:
           version: v2.6
+          working-directory: server
           only-new-issues: true
-          args: --out-format=github-actions,line-number
+          args: --output.format=github-actions
 
   security:
     runs-on: ubuntu-latest
@@ -43,6 +44,7 @@ jobs:
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - name: Run govulncheck
+        working-directory: server
         run: govulncheck ./...
 
   build_and_test:
@@ -59,9 +61,11 @@ jobs:
           cache: true
 
       - name: Install dependencies
+        working-directory: server
         run: go mod download
 
       - name: Check formatting
+        working-directory: server
         run: |
           gofmt -l -s .
           if [ -n "$(gofmt -l -s .)" ]; then
@@ -70,6 +74,7 @@ jobs:
           fi
 
       - name: Run tests with coverage
+        working-directory: server
         run: |
           go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
           go tool cover -func=coverage.txt
@@ -78,8 +83,10 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: server/coverage.txt
 
       - name: Build
+        working-directory: server
         run: go build -v ./...
 
   check_conflicts:
@@ -134,12 +141,12 @@ jobs:
 
       - name: Test Docker image
         run: |
-          docker run --rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }} --version
+          docker run --rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }} --help
 
   comment_result:
     runs-on: ubuntu-latest
     needs: [lint, security, build_and_test, check_conflicts, build_docker]
-    if: always()
+    if: always() && github.event_name == 'pull_request'
     steps:
       - name: Comment PR with status
         uses: actions/github-script@v7
