@@ -7,7 +7,7 @@ on:
 
 jobs:
   ci:
-    uses: ./.github/workflows/reusable.yml
+    uses: ./.github/workflows/reusable.yaml
     with:
       image_tag: latest
       push_latest: true

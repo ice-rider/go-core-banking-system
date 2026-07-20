@@ -6,7 +6,7 @@ on:
 
 jobs:
   ci:
-    uses: ./.github/workflows/reusable.yml
+    uses: ./.github/workflows/reusable.yaml
     with:
       image_tag: ${{ github.event.pull_request.head.ref }}
       push_latest: false
