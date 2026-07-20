@@ -25,13 +25,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to connect to account service: %v", err)
 	}
-	defer accountConn.Close()
+	defer func() { _ = accountConn.Close() }()
 
 	transactionConn, err := grpc.NewClient(transactionAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to transaction service: %v", err)
 	}
-	defer transactionConn.Close()
+	defer func() { _ = transactionConn.Close() }()
 
 	accountClient := client.NewAccountClientWrapper(pb_account.NewAccountServiceClient(accountConn))
 	transactionClient := client.NewTransactionClientWrapper(pb_transaction.NewTransactionServiceClient(transactionConn))
