@@ -68,7 +68,7 @@ func main() {
 	accountCli := &grpcAccountClient{client: accountClient}
 
 	repo := repository.NewPostgresRepo(pool)
-	svc := service.NewTransactionService(repo, accountCli)
+	svc := service.NewTransactionService(repo, accountCli, nil)
 	grpcHandler := handler.NewTransactionGRPCHandler(svc)
 
 	lis, err := net.Listen("tcp", ":"+grpcPort)

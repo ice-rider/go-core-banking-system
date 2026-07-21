@@ -15,7 +15,8 @@ import (
 func TestTransfer_ValidTransfer(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	var createdTx *domain.Transaction
 	repo.CreateFunc = func(ctx context.Context, tx *domain.Transaction) error {
@@ -45,7 +46,8 @@ func TestTransfer_ValidTransfer(t *testing.T) {
 func TestTransfer_SameAccount(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	_, err := svc.Transfer(context.Background(), domain.TransferInput{
 		FromAccountID:  "same-id",
@@ -60,7 +62,8 @@ func TestTransfer_SameAccount(t *testing.T) {
 func TestTransfer_NegativeAmount(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	_, err := svc.Transfer(context.Background(), domain.TransferInput{
 		FromAccountID:  "acc-from",
@@ -75,7 +78,8 @@ func TestTransfer_NegativeAmount(t *testing.T) {
 func TestTransfer_ZeroAmount(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	_, err := svc.Transfer(context.Background(), domain.TransferInput{
 		FromAccountID:  "acc-from",
@@ -90,7 +94,8 @@ func TestTransfer_ZeroAmount(t *testing.T) {
 func TestTransfer_EmptyIdempotencyKey(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	_, err := svc.Transfer(context.Background(), domain.TransferInput{
 		FromAccountID:  "acc-from",
@@ -105,7 +110,8 @@ func TestTransfer_EmptyIdempotencyKey(t *testing.T) {
 func TestTransfer_Idempotent(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	existingTx := &domain.Transaction{
 		ID:             "existing-tx",
@@ -134,7 +140,8 @@ func TestTransfer_Idempotent(t *testing.T) {
 func TestTransfer_UniqueViolation(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	existingTx := &domain.Transaction{
 		ID:             "existing-tx",
@@ -172,7 +179,8 @@ func TestTransfer_UniqueViolation(t *testing.T) {
 func TestExecuteSaga_Success(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	repo.CreateFunc = func(ctx context.Context, tx *domain.Transaction) error {
 		return nil
@@ -195,7 +203,8 @@ func TestExecuteSaga_Success(t *testing.T) {
 func TestExecuteSaga_ReserveError(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	reserveErr := errors.New("reserve failed")
 	accountCli.ReserveFunc = func(ctx context.Context, id string, amount int64) error {
@@ -228,7 +237,8 @@ func TestExecuteSaga_ReserveError(t *testing.T) {
 func TestExecuteSaga_CreditErrorCompensated(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	creditErr := errors.New("credit failed")
 	accountCli.CreditFunc = func(ctx context.Context, id string, amount int64) error {
@@ -261,7 +271,8 @@ func TestExecuteSaga_CreditErrorCompensated(t *testing.T) {
 func TestExecuteSaga_CommitReservationErrorCompensated(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	commitErr := errors.New("commit failed")
 	accountCli.CommitReservationFunc = func(ctx context.Context, id string, amount int64) error {
@@ -294,7 +305,8 @@ func TestExecuteSaga_CommitReservationErrorCompensated(t *testing.T) {
 func TestGetByID_ExistingTransaction(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	expectedTx := &domain.Transaction{
 		ID:             "tx-1",
@@ -318,7 +330,8 @@ func TestGetByID_ExistingTransaction(t *testing.T) {
 func TestGetByID_NotFound(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}
-	svc := NewTransactionService(repo, accountCli)
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
 
 	repo.GetByIDFunc = func(ctx context.Context, id string) (*domain.Transaction, error) {
 		return nil, domain.ErrTransactionNotFound
@@ -328,4 +341,126 @@ func TestGetByID_NotFound(t *testing.T) {
 
 	require.ErrorIs(t, err, domain.ErrTransactionNotFound)
 	assert.Nil(t, result)
+}
+
+func TestTransfer_PublishEventOnSuccess(t *testing.T) {
+	repo := &mocks.MockTransactionRepository{}
+	accountCli := &mocks.MockAccountClient{}
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
+
+	repo.CreateFunc = func(ctx context.Context, tx *domain.Transaction) error {
+		return nil
+	}
+	repo.UpdateStatusFunc = func(ctx context.Context, id string, status domain.TransactionStatus) error {
+		return nil
+	}
+
+	var publishedEvent *domain.TransactionEvent
+	publisher.PublishTransactionEventFunc = func(event *domain.TransactionEvent) error {
+		publishedEvent = event
+		return nil
+	}
+
+	result, err := svc.Transfer(context.Background(), domain.TransferInput{
+		FromAccountID:  "acc-from",
+		ToAccountID:    "acc-to",
+		Amount:         500,
+		IdempotencyKey: "key-1",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, domain.TxStatusCompleted, result.Status)
+	require.NotNil(t, publishedEvent)
+	assert.Equal(t, domain.EventTransactionCompleted, publishedEvent.Type)
+	assert.Equal(t, "acc-from", publishedEvent.FromAccountID)
+	assert.Equal(t, "acc-to", publishedEvent.ToAccountID)
+	assert.Equal(t, int64(500), publishedEvent.Amount)
+}
+
+func TestTransfer_PublishEventOnFailure(t *testing.T) {
+	repo := &mocks.MockTransactionRepository{}
+	accountCli := &mocks.MockAccountClient{}
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
+
+	accountCli.ReserveFunc = func(ctx context.Context, id string, amount int64) error {
+		return errors.New("insufficient funds")
+	}
+
+	repo.CreateFunc = func(ctx context.Context, tx *domain.Transaction) error {
+		return nil
+	}
+	repo.UpdateStatusFunc = func(ctx context.Context, id string, status domain.TransactionStatus) error {
+		return nil
+	}
+
+	var publishedEvent *domain.TransactionEvent
+	publisher.PublishTransactionEventFunc = func(event *domain.TransactionEvent) error {
+		publishedEvent = event
+		return nil
+	}
+
+	result, err := svc.Transfer(context.Background(), domain.TransferInput{
+		FromAccountID:  "acc-from",
+		ToAccountID:    "acc-to",
+		Amount:         500,
+		IdempotencyKey: "key-1",
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, domain.TxStatusFailed, result.Status)
+	require.NotNil(t, publishedEvent)
+	assert.Equal(t, domain.EventTransactionFailed, publishedEvent.Type)
+}
+
+func TestTransfer_NilPublisher_NoError(t *testing.T) {
+	repo := &mocks.MockTransactionRepository{}
+	accountCli := &mocks.MockAccountClient{}
+	svc := NewTransactionService(repo, accountCli, nil)
+
+	repo.CreateFunc = func(ctx context.Context, tx *domain.Transaction) error {
+		return nil
+	}
+	repo.UpdateStatusFunc = func(ctx context.Context, id string, status domain.TransactionStatus) error {
+		return nil
+	}
+
+	result, err := svc.Transfer(context.Background(), domain.TransferInput{
+		FromAccountID:  "acc-from",
+		ToAccountID:    "acc-to",
+		Amount:         500,
+		IdempotencyKey: "key-1",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, domain.TxStatusCompleted, result.Status)
+}
+
+func TestTransfer_PublishEventError_Ignored(t *testing.T) {
+	repo := &mocks.MockTransactionRepository{}
+	accountCli := &mocks.MockAccountClient{}
+	publisher := &mocks.MockEventPublisher{}
+	svc := NewTransactionService(repo, accountCli, publisher)
+
+	repo.CreateFunc = func(ctx context.Context, tx *domain.Transaction) error {
+		return nil
+	}
+	repo.UpdateStatusFunc = func(ctx context.Context, id string, status domain.TransactionStatus) error {
+		return nil
+	}
+
+	publisher.PublishTransactionEventFunc = func(event *domain.TransactionEvent) error {
+		return errors.New("rabbitmq connection lost")
+	}
+
+	result, err := svc.Transfer(context.Background(), domain.TransferInput{
+		FromAccountID:  "acc-from",
+		ToAccountID:    "acc-to",
+		Amount:         500,
+		IdempotencyKey: "key-1",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, domain.TxStatusCompleted, result.Status)
 }
