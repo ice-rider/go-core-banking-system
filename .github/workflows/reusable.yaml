@@ -101,13 +101,15 @@ jobs:
       - name: Check for merge conflicts
         id: check
         run: |
-          if git ls-files -u | grep -q .; then
-            echo "has_conflicts=true" >> $GITHUB_OUTPUT
-            echo "❌ Merge conflicts detected!"
-            exit 1
-          else
+          git fetch origin develop
+          if git merge origin/develop --no-commit --no-ff 2>&1; then
             echo "has_conflicts=false" >> $GITHUB_OUTPUT
             echo "✅ No merge conflicts"
+          else
+            echo "has_conflicts=true" >> $GITHUB_OUTPUT
+            echo "❌ Merge conflicts detected!"
+            git merge --abort
+            exit 1
           fi
 
   docker_build:
