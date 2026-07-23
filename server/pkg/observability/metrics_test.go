@@ -10,8 +10,8 @@ import (
 
 func TestMetrics_Initialization(t *testing.T) {
 	tests := []struct {
-		name     string
-		metric   interface{}
+		name   string
+		metric interface{}
 	}{
 		{"HTTPRequestDuration is non-nil", Metrics.HTTPRequestDuration},
 		{"HTTPRequestsTotal is non-nil", Metrics.HTTPRequestsTotal},
