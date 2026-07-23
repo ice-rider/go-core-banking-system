@@ -72,7 +72,7 @@ func TestRecoveryMiddleware_PanicRecovery(t *testing.T) {
 	assert.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 }
 
-func TestCORSMiddleware_GETHeaders(t *testing.T) {
+func TestCORSMiddleware_AllowedOrigin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(CORSMiddleware())
@@ -81,13 +81,32 @@ func TestCORSMiddleware_GETHeaders(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "http://localhost:3000", w.Header().Get("Access-Control-Allow-Origin"))
 	assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "GET")
 	assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "POST")
 	assert.Contains(t, w.Header().Get("Access-Control-Allow-Headers"), "Content-Type")
+	assert.Equal(t, "true", w.Header().Get("Access-Control-Allow-Credentials"))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCORSMiddleware_DisallowedOrigin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(CORSMiddleware())
+	r.GET("/test", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok")
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Origin", "http://evil.com")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
@@ -100,11 +119,12 @@ func TestCORSMiddleware_OptionsPreflight(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodOptions, "/test", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
-	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "http://localhost:3000", w.Header().Get("Access-Control-Allow-Origin"))
 	assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "OPTIONS")
 }
 
@@ -117,9 +137,10 @@ func TestCORSMiddleware_POSTHeaders(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "http://localhost:3000", w.Header().Get("Access-Control-Allow-Origin"))
 	assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "POST")
 }

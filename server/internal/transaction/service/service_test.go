@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -162,7 +163,7 @@ func TestTransfer_UniqueViolation(t *testing.T) {
 	}
 
 	repo.CreateFunc = func(ctx context.Context, tx *domain.Transaction) error {
-		return errors.New("duplicate key violates unique constraint unique_violation")
+		return &pgconn.PgError{Code: "23505", Message: "duplicate key violates unique constraint"}
 	}
 
 	result, err := svc.Transfer(context.Background(), domain.TransferInput{

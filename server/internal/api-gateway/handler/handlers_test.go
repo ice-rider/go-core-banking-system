@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go-core-banking-system/internal/api-gateway/validator"
+	pkgerrors "go-core-banking-system/pkg/errors"
 	pb_account "go-core-banking-system/pkg/proto/account"
 	pb_transaction "go-core-banking-system/pkg/proto/transaction"
 )
@@ -298,7 +299,7 @@ func TestGetAccount(t *testing.T) {
 			mockSetup: func() *mockAccountClient {
 				return &mockAccountClient{
 					GetByIDFunc: func(ctx context.Context, id string) (*pb_account.AccountResponse, error) {
-						return nil, errors.New("account not found")
+						return nil, pkgerrors.ErrAccountNotFound
 					},
 				}
 			},
@@ -385,7 +386,7 @@ func TestBlockAccount(t *testing.T) {
 			mockSetup: func() *mockAccountClient {
 				return &mockAccountClient{
 					BlockFunc: func(ctx context.Context, id string) (*pb_account.Empty, error) {
-						return nil, errors.New("account not found")
+						return nil, pkgerrors.ErrAccountNotFound
 					},
 				}
 			},
@@ -401,7 +402,7 @@ func TestBlockAccount(t *testing.T) {
 			mockSetup: func() *mockAccountClient {
 				return &mockAccountClient{
 					BlockFunc: func(ctx context.Context, id string) (*pb_account.Empty, error) {
-						return nil, errors.New("account is blocked")
+						return nil, pkgerrors.ErrAccountBlocked
 					},
 				}
 			},
@@ -488,7 +489,7 @@ func TestUnblockAccount(t *testing.T) {
 			mockSetup: func() *mockAccountClient {
 				return &mockAccountClient{
 					UnblockFunc: func(ctx context.Context, id string) (*pb_account.Empty, error) {
-						return nil, errors.New("account not found")
+						return nil, pkgerrors.ErrAccountNotFound
 					},
 				}
 			},
@@ -504,7 +505,7 @@ func TestUnblockAccount(t *testing.T) {
 			mockSetup: func() *mockAccountClient {
 				return &mockAccountClient{
 					UnblockFunc: func(ctx context.Context, id string) (*pb_account.Empty, error) {
-						return nil, errors.New("account is not active")
+						return nil, pkgerrors.ErrAccountNotActive
 					},
 				}
 			},
@@ -591,7 +592,7 @@ func TestCloseAccount(t *testing.T) {
 			mockSetup: func() *mockAccountClient {
 				return &mockAccountClient{
 					CloseFunc: func(ctx context.Context, id string) (*pb_account.Empty, error) {
-						return nil, errors.New("account not found")
+						return nil, pkgerrors.ErrAccountNotFound
 					},
 				}
 			},
@@ -607,7 +608,7 @@ func TestCloseAccount(t *testing.T) {
 			mockSetup: func() *mockAccountClient {
 				return &mockAccountClient{
 					CloseFunc: func(ctx context.Context, id string) (*pb_account.Empty, error) {
-						return nil, errors.New("balance must be zero to close account")
+						return nil, pkgerrors.ErrBalanceNotZero
 					},
 				}
 			},
@@ -623,7 +624,7 @@ func TestCloseAccount(t *testing.T) {
 			mockSetup: func() *mockAccountClient {
 				return &mockAccountClient{
 					CloseFunc: func(ctx context.Context, id string) (*pb_account.Empty, error) {
-						return nil, errors.New("account is closed")
+						return nil, pkgerrors.ErrAccountClosed
 					},
 				}
 			},
@@ -767,7 +768,7 @@ func TestCreateTransfer(t *testing.T) {
 			mockSetup: func() *mockTransactionClient {
 				return &mockTransactionClient{
 					TransferFunc: func(ctx context.Context, fromAccountID, toAccountID string, amount int64, idempotencyKey string) (*pb_transaction.TransactionResponse, error) {
-						return nil, errors.New("cannot transfer to the same account")
+						return nil, pkgerrors.ErrSameAccount
 					},
 				}
 			},
@@ -783,7 +784,7 @@ func TestCreateTransfer(t *testing.T) {
 			mockSetup: func() *mockTransactionClient {
 				return &mockTransactionClient{
 					TransferFunc: func(ctx context.Context, fromAccountID, toAccountID string, amount int64, idempotencyKey string) (*pb_transaction.TransactionResponse, error) {
-						return nil, errors.New("account not found")
+						return nil, pkgerrors.ErrAccountNotFound
 					},
 				}
 			},
@@ -798,7 +799,7 @@ func TestCreateTransfer(t *testing.T) {
 			mockSetup: func() *mockTransactionClient {
 				return &mockTransactionClient{
 					TransferFunc: func(ctx context.Context, fromAccountID, toAccountID string, amount int64, idempotencyKey string) (*pb_transaction.TransactionResponse, error) {
-						return nil, errors.New("insufficient funds")
+						return nil, pkgerrors.ErrInsufficientFunds
 					},
 				}
 			},
@@ -814,7 +815,7 @@ func TestCreateTransfer(t *testing.T) {
 			mockSetup: func() *mockTransactionClient {
 				return &mockTransactionClient{
 					TransferFunc: func(ctx context.Context, fromAccountID, toAccountID string, amount int64, idempotencyKey string) (*pb_transaction.TransactionResponse, error) {
-						return nil, errors.New("account is blocked")
+						return nil, pkgerrors.ErrAccountBlocked
 					},
 				}
 			},
@@ -830,7 +831,7 @@ func TestCreateTransfer(t *testing.T) {
 			mockSetup: func() *mockTransactionClient {
 				return &mockTransactionClient{
 					TransferFunc: func(ctx context.Context, fromAccountID, toAccountID string, amount int64, idempotencyKey string) (*pb_transaction.TransactionResponse, error) {
-						return nil, errors.New("idempotency key already used")
+						return nil, pkgerrors.ErrIdempotencyKeyUsed
 					},
 				}
 			},
@@ -916,7 +917,7 @@ func TestGetTransaction(t *testing.T) {
 			mockSetup: func() *mockTransactionClient {
 				return &mockTransactionClient{
 					GetByIDFunc: func(ctx context.Context, id string) (*pb_transaction.TransactionResponse, error) {
-						return nil, errors.New("transaction not found")
+						return nil, pkgerrors.ErrTransactionNotFound
 					},
 				}
 			},

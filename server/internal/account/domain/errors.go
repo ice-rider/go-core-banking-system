@@ -1,14 +1,14 @@
 package domain
 
-import "errors"
+import "go-core-banking-system/pkg/errors"
 
 var (
-	ErrAccountNotFound   = errors.New("account not found")
-	ErrInsufficientFunds = errors.New("insufficient funds")
-	ErrAccountBlocked    = errors.New("account is blocked")
-	ErrAccountClosed     = errors.New("account is closed")
-	ErrAccountNotActive  = errors.New("account is not active")
-	ErrBalanceNotZero    = errors.New("balance must be zero to close account")
-	ErrInvalidAmount     = errors.New("amount must be positive")
-	ErrOwnerNameRequired = errors.New("owner name is required")
+	ErrAccountNotFound   = errors.ErrAccountNotFound
+	ErrInsufficientFunds = errors.ErrInsufficientFunds
+	ErrAccountBlocked    = errors.ErrAccountBlocked
+	ErrAccountClosed     = errors.ErrAccountClosed
+	ErrAccountNotActive  = errors.ErrAccountNotActive
+	ErrBalanceNotZero    = errors.ErrBalanceNotZero
+	ErrInvalidAmount     = errors.ErrInvalidAmount
+	ErrOwnerNameRequired = errors.ErrOwnerNameRequired
 )
