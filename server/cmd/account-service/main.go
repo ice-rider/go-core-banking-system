@@ -78,7 +78,7 @@ func runMigrations(dsn, migrationsPath string) {
 	if err != nil {
 		log.Fatalf("failed to create migrate instance: %v", err)
 	}
-	defer m.Close()
+	defer func() { _, _ = m.Close() }()
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		log.Fatalf("failed to run migrations: %v", err)

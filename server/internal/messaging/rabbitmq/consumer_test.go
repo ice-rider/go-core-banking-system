@@ -316,7 +316,7 @@ func TestAck_Success(t *testing.T) {
 
 	err = consumer.Start(context.Background())
 	require.NoError(t, err)
-	defer consumer.Stop()
+	defer func() { _ = consumer.Stop() }()
 
 	err = consumer.Ack(1)
 
@@ -370,7 +370,7 @@ func TestAck_InvalidDelivery(t *testing.T) {
 
 		err = consumer.Start(context.Background())
 		require.NoError(t, err)
-		defer consumer.Stop()
+		defer func() { _ = consumer.Stop() }()
 
 		err = consumer.Ack(999)
 
@@ -403,7 +403,7 @@ func TestNack_Success(t *testing.T) {
 
 	err = consumer.Start(context.Background())
 	require.NoError(t, err)
-	defer consumer.Stop()
+	defer func() { _ = consumer.Stop() }()
 
 	err = consumer.Nack(1, true)
 
@@ -441,7 +441,7 @@ func TestNack_WithoutRequeue(t *testing.T) {
 
 	err = consumer.Start(context.Background())
 	require.NoError(t, err)
-	defer consumer.Stop()
+	defer func() { _ = consumer.Stop() }()
 
 	err = consumer.Nack(5, false)
 

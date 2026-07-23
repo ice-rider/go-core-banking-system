@@ -62,13 +62,13 @@ func (c *Consumer) Start(ctx context.Context) error {
 
 	_, err = c.ch.QueueDeclare(c.queue, true, false, false, false, nil)
 	if err != nil {
-		ch.Close()
+		_ = ch.Close()
 		return fmt.Errorf("failed to declare queue: %w", err)
 	}
 
 	deliveries, err := c.ch.Consume(c.queue, "", false, false, false, false, nil)
 	if err != nil {
-		ch.Close()
+		_ = ch.Close()
 		return fmt.Errorf("failed to start consuming: %w", err)
 	}
 
@@ -92,9 +92,9 @@ func (c *Consumer) consume(ctx context.Context, deliveries <-chan amqp.Delivery)
 				return
 			}
 			if err := c.handler(delivery.Body); err != nil {
-				delivery.Nack(false, true)
+				_ = delivery.Nack(false, true)
 			} else {
-				delivery.Ack(false)
+				_ = delivery.Ack(false)
 			}
 		}
 	}

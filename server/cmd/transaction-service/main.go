@@ -62,7 +62,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to connect to account service: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	accountClient := account.NewAccountServiceClient(conn)
 	accountCli := &grpcAccountClient{client: accountClient}
@@ -126,7 +126,7 @@ func runMigrations(dsn, migrationsPath string) {
 	if err != nil {
 		log.Fatalf("failed to create migrate instance: %v", err)
 	}
-	defer m.Close()
+	defer func() { _, _ = m.Close() }()
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		log.Fatalf("failed to run migrations: %v", err)
