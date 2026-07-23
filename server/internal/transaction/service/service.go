@@ -159,22 +159,3 @@ func (s *transactionService) publishEvent(tx *domain.Transaction, eventType doma
 
 	_ = s.publisher.PublishTransactionEvent(event)
 }
-
-func (s *transactionService) publishEvent(tx *domain.Transaction, eventType domain.EventType) {
-	if s.publisher == nil {
-		return
-	}
-
-	event := &domain.TransactionEvent{
-		TransactionID:  tx.ID,
-		Type:           eventType,
-		Status:         tx.Status,
-		FromAccountID:  tx.FromAccountID,
-		ToAccountID:    tx.ToAccountID,
-		Amount:         tx.Amount,
-		IdempotencyKey: tx.IdempotencyKey,
-		Timestamp:      time.Now(),
-	}
-
-	_ = s.publisher.PublishTransactionEvent(event)
-}
