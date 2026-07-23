@@ -101,6 +101,8 @@ jobs:
       - name: Check for merge conflicts
         id: check
         run: |
+          git config user.email "ci@github-actions"
+          git config user.name "GitHub Actions"
           git fetch origin develop
           if git merge origin/develop --no-commit --no-ff 2>&1; then
             echo "has_conflicts=false" >> $GITHUB_OUTPUT
