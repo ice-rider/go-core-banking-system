@@ -11,10 +11,6 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-type mockInfo struct {
-	FullMethod string
-}
-
 type mockHandlerCalled struct {
 	called bool
 }
@@ -26,13 +22,6 @@ func mockUnaryHandler(called *mockHandlerCalled) grpc.UnaryHandler {
 	}
 }
 
-func mockUnaryHandlerError(called *mockHandlerCalled, err error) grpc.UnaryHandler {
-	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		called.called = true
-		return nil, err
-	}
-}
-
 type mockInvokerCalled struct {
 	called bool
 }
@@ -41,13 +30,6 @@ func mockUnaryInvoker(called *mockInvokerCalled) grpc.UnaryInvoker {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
 		called.called = true
 		return nil
-	}
-}
-
-func mockUnaryInvokerError(called *mockInvokerCalled, err error) grpc.UnaryInvoker {
-	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
-		called.called = true
-		return err
 	}
 }
 
