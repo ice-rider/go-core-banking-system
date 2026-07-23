@@ -438,6 +438,81 @@ func TestTransfer_NilPublisher_NoError(t *testing.T) {
 	assert.Equal(t, domain.TxStatusCompleted, result.Status)
 }
 
+func TestIsUniqueViolation_NilError(t *testing.T) {
+	assert.False(t, isUniqueViolation(nil))
+}
+
+func TestIsUniqueViolation_NonPgError(t *testing.T) {
+	assert.False(t, isUniqueViolation(errors.New("some error")))
+}
+
+func TestIsUniqueViolation_WrongCode(t *testing.T) {
+	pgErr := &pgconn.PgError{Code: "23503"}
+	assert.False(t, isUniqueViolation(pgErr))
+}
+
+func TestUpdateStatus_Error(t *testing.T) {
+	repo := &mocks.MockTransactionRepository{
+		UpdateStatusFunc: func(ctx context.Context, id string, status domain.TransactionStatus) error {
+			return errors.New("db error")
+		},
+	}
+	svc := NewTransactionService(repo, nil, nil).(*transactionService)
+	assert.NotPanics(t, func() {
+		svc.updateStatus(context.Background(), "tx-1", domain.TxStatusFailed)
+	})
+}
+
+func TestCompensateCancelReservation_Error(t *testing.T) {
+	accountCli := &mocks.MockAccountClient{
+		CancelReservationFunc: func(ctx context.Context, id string, amount int64) error {
+			return errors.New("cancel failed")
+		},
+	}
+	svc := NewTransactionService(nil, accountCli, nil).(*transactionService)
+	tx := &domain.Transaction{ID: "tx-1", FromAccountID: "acc-1", Amount: 100}
+	assert.NotPanics(t, func() {
+		svc.compensateCancelReservation(context.Background(), tx)
+	})
+}
+
+func TestCompensateFull_DebitError(t *testing.T) {
+	accountCli := &mocks.MockAccountClient{
+		DebitFunc: func(ctx context.Context, id string, amount int64) error {
+			return errors.New("debit failed")
+		},
+	}
+	svc := NewTransactionService(nil, accountCli, nil).(*transactionService)
+	tx := &domain.Transaction{ID: "tx-1", FromAccountID: "acc-1", ToAccountID: "acc-2", Amount: 100}
+	assert.NotPanics(t, func() {
+		svc.compensateFull(context.Background(), tx)
+	})
+}
+
+func TestTransfer_UpdateStatusError(t *testing.T) {
+	repo := &mocks.MockTransactionRepository{
+		CreateFunc: func(ctx context.Context, tx *domain.Transaction) error {
+			return nil
+		},
+		UpdateStatusFunc: func(ctx context.Context, id string, status domain.TransactionStatus) error {
+			return errors.New("update failed")
+		},
+	}
+	accountCli := &mocks.MockAccountClient{
+		ReserveFunc: func(ctx context.Context, id string, amount int64) error {
+			return errors.New("reserve failed")
+		},
+	}
+	svc := NewTransactionService(repo, accountCli, nil)
+	_, err := svc.Transfer(context.Background(), domain.TransferInput{
+		FromAccountID:  "acc-from",
+		ToAccountID:    "acc-to",
+		Amount:         100,
+		IdempotencyKey: "key-1",
+	})
+	require.Error(t, err)
+}
+
 func TestTransfer_PublishEventError_Ignored(t *testing.T) {
 	repo := &mocks.MockTransactionRepository{}
 	accountCli := &mocks.MockAccountClient{}

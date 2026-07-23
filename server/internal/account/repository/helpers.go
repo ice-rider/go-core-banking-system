@@ -3,10 +3,10 @@ package repository
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"go-core-banking-system/pkg/db"
 )
 
-func execAffected(ctx context.Context, pool *pgxpool.Pool, query string, notFoundErr error, args ...any) error {
+func execAffected(ctx context.Context, pool db.Pool, query string, notFoundErr error, args ...any) error {
 	tag, err := pool.Exec(ctx, query, args...)
 	if err != nil {
 		return err

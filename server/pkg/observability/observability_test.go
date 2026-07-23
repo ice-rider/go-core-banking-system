@@ -679,3 +679,24 @@ func TestGRPCClientInterceptors_Consistency(t *testing.T) {
 	assert.NotNil(t, stream1)
 	assert.NotNil(t, stream2)
 }
+
+func TestInit_WithOTLPEndpoint(t *testing.T) {
+	shutdown, err := Init("test-service", "localhost:4317")
+	require.NotNil(t, shutdown)
+
+	if err == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdown(ctx)
+	}
+}
+
+func TestInit_ExporterErrorFallback(t *testing.T) {
+	shutdown, err := Init("test-service", "invalid-endpoint:99999")
+	require.NotNil(t, shutdown)
+	if err == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdown(ctx)
+	}
+}

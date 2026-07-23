@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,6 +26,28 @@ func mockUnaryHandler(called *mockHandlerCalled) grpc.UnaryHandler {
 type mockInvokerCalled struct {
 	called bool
 }
+
+type mockServerStream struct {
+	ctx context.Context
+}
+
+func (m *mockServerStream) SetHeader(metadata.MD) error  { return nil }
+func (m *mockServerStream) SendHeader(metadata.MD) error { return nil }
+func (m *mockServerStream) SetTrailer(metadata.MD)       {}
+func (m *mockServerStream) Context() context.Context     { return m.ctx }
+func (m *mockServerStream) SendMsg(interface{}) error    { return nil }
+func (m *mockServerStream) RecvMsg(interface{}) error    { return nil }
+
+type mockClientStream struct {
+	ctx context.Context
+}
+
+func (m *mockClientStream) Header() (metadata.MD, error) { return nil, nil }
+func (m *mockClientStream) Trailer() metadata.MD         { return nil }
+func (m *mockClientStream) CloseSend() error             { return nil }
+func (m *mockClientStream) Context() context.Context     { return m.ctx }
+func (m *mockClientStream) SendMsg(interface{}) error    { return nil }
+func (m *mockClientStream) RecvMsg(interface{}) error    { return nil }
 
 func mockUnaryInvoker(called *mockInvokerCalled) grpc.UnaryInvoker {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
@@ -344,4 +367,146 @@ func TestUnaryServerInterceptor_MetadataExtraction(t *testing.T) {
 	keys, ok := resp.([]string)
 	require.True(t, ok)
 	assert.Contains(t, keys, "x-request-id")
+}
+
+func TestServerStatsHandler(t *testing.T) {
+	h := ServerStatsHandler()
+	assert.Nil(t, h)
+}
+
+func TestClientStatsHandler(t *testing.T) {
+	h := ClientStatsHandler()
+	assert.Nil(t, h)
+}
+
+func TestUnaryServerInterceptor_WithTracer(t *testing.T) {
+	shutdown, err := Init("test", "")
+	require.NoError(t, err)
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdown(ctx)
+	}()
+
+	interceptor := UnaryServerInterceptor()
+	require.NotNil(t, interceptor)
+
+	handlerCalled := false
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		handlerCalled = true
+		return "ok", nil
+	}
+
+	info := &grpc.UnaryServerInfo{FullMethod: "/test/Method"}
+	resp, err := interceptor(context.Background(), "req", info, handler)
+
+	require.NoError(t, err)
+	assert.Equal(t, "ok", resp)
+	assert.True(t, handlerCalled)
+}
+
+func TestUnaryServerInterceptor_WithTracerAndMetadata(t *testing.T) {
+	shutdown, err := Init("test", "")
+	require.NoError(t, err)
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdown(ctx)
+	}()
+
+	interceptor := UnaryServerInterceptor()
+	require.NotNil(t, interceptor)
+
+	handlerCalled := false
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		handlerCalled = true
+		return "ok", nil
+	}
+
+	md := metadata.New(map[string]string{"x-request-id": "test-123"})
+	ctx := metadata.NewIncomingContext(context.Background(), md)
+	info := &grpc.UnaryServerInfo{FullMethod: "/test/Method"}
+	resp, err := interceptor(ctx, "req", info, handler)
+
+	require.NoError(t, err)
+	assert.Equal(t, "ok", resp)
+	assert.True(t, handlerCalled)
+}
+
+func TestStreamServerInterceptor_WithTracer(t *testing.T) {
+	shutdown, err := Init("test", "")
+	require.NoError(t, err)
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdown(ctx)
+	}()
+
+	interceptor := StreamServerInterceptor()
+	require.NotNil(t, interceptor)
+
+	handlerCalled := false
+	handler := func(srv interface{}, ss grpc.ServerStream) error {
+		handlerCalled = true
+		return nil
+	}
+
+	ss := &mockServerStream{ctx: context.Background()}
+	info := &grpc.StreamServerInfo{FullMethod: "/test/StreamMethod"}
+	err = interceptor(nil, ss, info, handler)
+
+	require.NoError(t, err)
+	assert.True(t, handlerCalled)
+}
+
+func TestUnaryClientInterceptor_WithTracer(t *testing.T) {
+	shutdown, err := Init("test", "")
+	require.NoError(t, err)
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdown(ctx)
+	}()
+
+	interceptor := UnaryClientInterceptor()
+	require.NotNil(t, interceptor)
+
+	invokerCalled := false
+	invoker := func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+		invokerCalled = true
+		return nil
+	}
+
+	cc := &grpc.ClientConn{}
+	err = interceptor(context.Background(), "/test/Method", "req", new(string), cc, invoker)
+
+	require.NoError(t, err)
+	assert.True(t, invokerCalled)
+}
+
+func TestStreamClientInterceptor_WithTracer(t *testing.T) {
+	shutdown, err := Init("test", "")
+	require.NoError(t, err)
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdown(ctx)
+	}()
+
+	interceptor := StreamClientInterceptor()
+	require.NotNil(t, interceptor)
+
+	streamerCalled := false
+	streamer := func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+		streamerCalled = true
+		return &mockClientStream{ctx: ctx}, nil
+	}
+
+	cc := &grpc.ClientConn{}
+	desc := &grpc.StreamDesc{StreamName: "test-stream"}
+	stream, err := interceptor(context.Background(), desc, cc, "/test/StreamMethod", streamer)
+
+	require.NoError(t, err)
+	assert.NotNil(t, stream)
+	assert.True(t, streamerCalled)
 }

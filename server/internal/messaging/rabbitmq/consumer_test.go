@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
@@ -71,6 +72,28 @@ func TestNewConsumer_Success(t *testing.T) {
 
 	require.NotNil(t, consumer)
 	assert.False(t, consumer.stopped)
+}
+
+func TestNewConsumer_StartDefaultChannelError(t *testing.T) {
+	conn := &mockConnection{
+		channelFunc: func() (*amqp.Channel, error) {
+			return nil, errors.New("channel error")
+		},
+	}
+	restore := setupMockDialer(func(url string) (AMQPConnection, error) {
+		return conn, nil
+	})
+	defer restore()
+
+	c, err := NewConnection("amqp://guest:guest@localhost:5672/")
+	require.NoError(t, err)
+
+	consumer := NewConsumer(c, "test-queue", func(data []byte) error { return nil })
+
+	err = consumer.Start(context.Background())
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to open channel")
 }
 
 func TestNewConsumer_NilHandler(t *testing.T) {
@@ -464,4 +487,146 @@ func TestNack_NotStarted(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "consumer not started")
+}
+
+type mockAcknowledger struct {
+	ackFunc  func(tag uint64, multiple bool) error
+	nackFunc func(tag uint64, multiple bool, requeue bool) error
+}
+
+func (m *mockAcknowledger) Ack(tag uint64, multiple bool) error {
+	if m.ackFunc != nil {
+		return m.ackFunc(tag, multiple)
+	}
+	return nil
+}
+
+func (m *mockAcknowledger) Nack(tag uint64, multiple bool, requeue bool) error {
+	if m.nackFunc != nil {
+		return m.nackFunc(tag, multiple, requeue)
+	}
+	return nil
+}
+
+func (m *mockAcknowledger) Reject(tag uint64, requeue bool) error {
+	return nil
+}
+
+func TestConsume_HandlerError_Nacks(t *testing.T) {
+	mockCh := &mockConsumerChannel{}
+
+	var nackedTag uint64
+	var nackedRequeue bool
+	ack := &mockAcknowledger{
+		nackFunc: func(tag uint64, multiple bool, requeue bool) error {
+			nackedTag = tag
+			nackedRequeue = requeue
+			return nil
+		},
+	}
+
+	deliveries := make(chan amqp.Delivery, 1)
+	deliveries <- amqp.Delivery{
+		Acknowledger: ack,
+		DeliveryTag:  1,
+		Body:         []byte("test"),
+	}
+
+	handlerCalled := make(chan struct{})
+	c := &Consumer{
+		queue: "test-queue",
+		handler: func(data []byte) error {
+			close(handlerCalled)
+			return errors.New("handler error")
+		},
+		stopCh: make(chan struct{}),
+		ch:     mockCh,
+		doneCh: make(chan struct{}),
+	}
+
+	go c.consume(context.Background(), deliveries)
+
+	<-handlerCalled
+	close(deliveries)
+
+	<-c.doneCh
+
+	assert.Equal(t, uint64(1), nackedTag)
+	assert.True(t, nackedRequeue)
+}
+
+func TestConsume_HandlerSuccess_Acks(t *testing.T) {
+	mockCh := &mockConsumerChannel{}
+
+	var ackedTag uint64
+	ack := &mockAcknowledger{
+		ackFunc: func(tag uint64, multiple bool) error {
+			ackedTag = tag
+			return nil
+		},
+	}
+
+	deliveries := make(chan amqp.Delivery, 1)
+	deliveries <- amqp.Delivery{
+		Acknowledger: ack,
+		DeliveryTag:  2,
+		Body:         []byte("test"),
+	}
+
+	handlerCalled := make(chan struct{})
+	c := &Consumer{
+		queue: "test-queue",
+		handler: func(data []byte) error {
+			close(handlerCalled)
+			return nil
+		},
+		stopCh: make(chan struct{}),
+		ch:     mockCh,
+		doneCh: make(chan struct{}),
+	}
+
+	go c.consume(context.Background(), deliveries)
+
+	<-handlerCalled
+	close(deliveries)
+
+	<-c.doneCh
+
+	assert.Equal(t, uint64(2), ackedTag)
+}
+
+func TestConsume_DeliveriesChannelClosed(t *testing.T) {
+	mockCh := &mockConsumerChannel{}
+
+	deliveries := make(chan amqp.Delivery)
+	close(deliveries)
+
+	conn := &mockConnection{}
+	restore := setupMockDialer(func(url string) (AMQPConnection, error) {
+		return conn, nil
+	})
+	defer restore()
+
+	c, err := NewConnection("amqp://guest:guest@localhost:5672/")
+	require.NoError(t, err)
+
+	consumer := &Consumer{
+		conn:    c,
+		queue:   "test-queue",
+		handler: func(data []byte) error { return nil },
+		newChannel: func() (ConsumerChannel, error) {
+			return mockCh, nil
+		},
+		stopCh: make(chan struct{}),
+	}
+
+	consumer.ch = mockCh
+	consumer.doneCh = make(chan struct{})
+	go consumer.consume(context.Background(), deliveries)
+
+	select {
+	case <-consumer.doneCh:
+	case <-time.After(time.Second):
+		t.Fatal("consumer did not exit")
+	}
 }
