@@ -63,6 +63,9 @@ func TestNewRouter_RoutesExist(t *testing.T) {
 	assert.True(t, routeMap["POST:/accounts/:id/close"])
 	assert.True(t, routeMap["POST:/transfers"])
 	assert.True(t, routeMap["GET:/transfers/:id"])
+	assert.True(t, routeMap["GET:/healthz"])
+	assert.True(t, routeMap["GET:/readyz"])
+	assert.True(t, routeMap["GET:/metrics"])
 }
 
 func TestRouter_CORSHeaders(t *testing.T) {

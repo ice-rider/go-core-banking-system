@@ -17,6 +17,7 @@ import (
 	"go-core-banking-system/internal/account/handler"
 	"go-core-banking-system/internal/account/repository"
 	"go-core-banking-system/internal/account/service"
+	"go-core-banking-system/pkg/observability"
 	"go-core-banking-system/pkg/proto/account"
 )
 
@@ -27,6 +28,17 @@ func main() {
 	dbPass := getEnv("DB_PASSWORD", "bank_secret")
 	dbName := getEnv("DB_NAME", "account_db")
 	grpcPort := getEnv("GRPC_PORT", "9001")
+	otlpEndpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+
+	shutdown, err := observability.Init("account-service", otlpEndpoint)
+	if err != nil {
+		log.Printf("warning: observability init failed: %v", err)
+	}
+	if shutdown != nil {
+		defer func() {
+			_ = shutdown(context.Background())
+		}()
+	}
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		dbUser, dbPass, dbHost, dbPort, dbName)
@@ -64,7 +76,12 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	unaryInterceptor, streamInterceptor := observability.GRPCServerInterceptors()
+	grpcServer := grpc.NewServer(
+		grpc.StatsHandler(observability.ServerStatsHandler()),
+		grpc.ChainUnaryInterceptor(unaryInterceptor),
+		grpc.ChainStreamInterceptor(streamInterceptor),
+	)
 	account.RegisterAccountServiceServer(grpcServer, grpcHandler)
 
 	log.Printf("Account Service listening on :%s", grpcPort)

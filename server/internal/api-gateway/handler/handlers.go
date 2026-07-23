@@ -147,6 +147,14 @@ func (h *Handler) CreateTransfer(c *gin.Context) {
 	c.JSON(http.StatusCreated, resp)
 }
 
+func (h *Handler) HealthCheck(c *gin.Context) {
+	if c.Request.Method != http.MethodGet {
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "method not allowed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "api-gateway"})
+}
+
 func (h *Handler) GetTransaction(c *gin.Context) {
 	id, ok := extractID(c)
 	if !ok {

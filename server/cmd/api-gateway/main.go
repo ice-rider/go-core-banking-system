@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"go-core-banking-system/internal/api-gateway/handler"
 	"go-core-banking-system/internal/api-gateway/router"
 	"go-core-banking-system/internal/api-gateway/validator"
+	"go-core-banking-system/pkg/observability"
 	pb_account "go-core-banking-system/pkg/proto/account"
 	pb_transaction "go-core-banking-system/pkg/proto/transaction"
 )
@@ -20,14 +22,31 @@ func main() {
 	accountAddr := getEnv("ACCOUNT_SERVICE_ADDR", "localhost:50051")
 	transactionAddr := getEnv("TRANSACTION_SERVICE_ADDR", "localhost:50052")
 	httpPort := getEnv("HTTP_PORT", "8080")
+	otlpEndpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 
-	accountConn, err := grpc.NewClient(accountAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	shutdown, err := observability.Init("api-gateway", otlpEndpoint)
+	if err != nil {
+		log.Printf("warning: observability init failed: %v", err)
+	}
+	if shutdown != nil {
+		defer func() {
+			_ = shutdown(context.Background())
+		}()
+	}
+
+	accountConn, err := grpc.NewClient(accountAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(observability.ClientStatsHandler()),
+	)
 	if err != nil {
 		log.Fatalf("failed to connect to account service: %v", err)
 	}
 	defer func() { _ = accountConn.Close() }()
 
-	transactionConn, err := grpc.NewClient(transactionAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	transactionConn, err := grpc.NewClient(transactionAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(observability.ClientStatsHandler()),
+	)
 	if err != nil {
 		log.Fatalf("failed to connect to transaction service: %v", err)
 	}
