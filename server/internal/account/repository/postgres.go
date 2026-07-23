@@ -44,91 +44,33 @@ func (r *postgresRepo) UpdateStatus(ctx context.Context, id string, status domai
 }
 
 func (r *postgresRepo) Reserve(ctx context.Context, id string, amount int64) error {
-	tag, err := r.pool.Exec(ctx, queryReserve, amount, id)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrInsufficientFunds
-	}
-	return nil
+	return execAffected(ctx, r.pool, queryReserve, domain.ErrInsufficientFunds, amount, id)
 }
 
 func (r *postgresRepo) Credit(ctx context.Context, id string, amount int64) error {
-	tag, err := r.pool.Exec(ctx, queryCredit, amount, id)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrAccountNotFound
-	}
-	return nil
+	return execAffected(ctx, r.pool, queryCredit, domain.ErrAccountNotFound, amount, id)
 }
 
 func (r *postgresRepo) Debit(ctx context.Context, id string, amount int64) error {
-	tag, err := r.pool.Exec(ctx, queryDebit, amount, id)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrInsufficientFunds
-	}
-	return nil
+	return execAffected(ctx, r.pool, queryDebit, domain.ErrInsufficientFunds, amount, id)
 }
 
-// CommitReservation подтверждает резервирование. В нашей модели Reserve уже списал
-// средства с баланса, поэтому этот метод лишь фиксирует факт подтверждения (аудит).
 func (r *postgresRepo) CommitReservation(ctx context.Context, id string, amount int64) error {
-	tag, err := r.pool.Exec(ctx, queryCommitReservation, id)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrAccountNotFound
-	}
-	return nil
+	return execAffected(ctx, r.pool, queryCommitReservation, domain.ErrAccountNotFound, id)
 }
 
 func (r *postgresRepo) CancelReservation(ctx context.Context, id string, amount int64) error {
-	tag, err := r.pool.Exec(ctx, queryCancelReservation, amount, id)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrAccountNotFound
-	}
-	return nil
+	return execAffected(ctx, r.pool, queryCancelReservation, domain.ErrAccountNotFound, amount, id)
 }
 
 func (r *postgresRepo) BlockAtomically(ctx context.Context, id string) error {
-	tag, err := r.pool.Exec(ctx, queryBlockAtomically, id)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrAccountNotFound
-	}
-	return nil
+	return execAffected(ctx, r.pool, queryBlockAtomically, domain.ErrAccountNotFound, id)
 }
 
 func (r *postgresRepo) UnblockAtomically(ctx context.Context, id string) error {
-	tag, err := r.pool.Exec(ctx, queryUnblockAtomically, id)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrAccountNotFound
-	}
-	return nil
+	return execAffected(ctx, r.pool, queryUnblockAtomically, domain.ErrAccountNotFound, id)
 }
 
 func (r *postgresRepo) CloseAtomically(ctx context.Context, id string) error {
-	tag, err := r.pool.Exec(ctx, queryCloseAtomically, id)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrBalanceNotZero
-	}
-	return nil
+	return execAffected(ctx, r.pool, queryCloseAtomically, domain.ErrBalanceNotZero, id)
 }

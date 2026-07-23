@@ -2,18 +2,30 @@ package domain
 
 import "context"
 
-type Repository interface {
-	Create(ctx context.Context, account *Account) error
+type AccountReader interface {
 	GetByID(ctx context.Context, id string) (*Account, error)
+}
+
+type AccountWriter interface {
+	Create(ctx context.Context, account *Account) error
 	UpdateStatus(ctx context.Context, id string, status Status) error
+	BlockAtomically(ctx context.Context, id string) error
+	UnblockAtomically(ctx context.Context, id string) error
+	CloseAtomically(ctx context.Context, id string) error
+}
+
+type AccountOperations interface {
 	Reserve(ctx context.Context, id string, amount int64) error
 	Credit(ctx context.Context, id string, amount int64) error
 	Debit(ctx context.Context, id string, amount int64) error
 	CommitReservation(ctx context.Context, id string, amount int64) error
 	CancelReservation(ctx context.Context, id string, amount int64) error
-	BlockAtomically(ctx context.Context, id string) error
-	UnblockAtomically(ctx context.Context, id string) error
-	CloseAtomically(ctx context.Context, id string) error
+}
+
+type Repository interface {
+	AccountReader
+	AccountWriter
+	AccountOperations
 }
 
 type Service interface {

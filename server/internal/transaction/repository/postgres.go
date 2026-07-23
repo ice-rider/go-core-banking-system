@@ -40,14 +40,7 @@ func (r *postgresRepo) GetByID(ctx context.Context, id string) (*domain.Transact
 }
 
 func (r *postgresRepo) UpdateStatus(ctx context.Context, id string, status domain.TransactionStatus) error {
-	tag, err := r.pool.Exec(ctx, queryUpdateTransactionStatus, status, id)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrTransactionNotFound
-	}
-	return nil
+	return execAffected(ctx, r.pool, queryUpdateTransactionStatus, domain.ErrTransactionNotFound, status, id)
 }
 
 func (r *postgresRepo) GetByIdempotencyKey(ctx context.Context, key string) (*domain.Transaction, error) {

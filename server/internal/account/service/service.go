@@ -58,23 +58,30 @@ func (s *accountService) Close(ctx context.Context, id string) error {
 	return s.repo.CloseAtomically(ctx, id)
 }
 
-func (s *accountService) Reserve(ctx context.Context, id string, amount int64) error {
+func validatePositiveAmount(amount int64) error {
 	if amount <= 0 {
 		return domain.ErrInvalidAmount
+	}
+	return nil
+}
+
+func (s *accountService) Reserve(ctx context.Context, id string, amount int64) error {
+	if err := validatePositiveAmount(amount); err != nil {
+		return err
 	}
 	return s.repo.Reserve(ctx, id, amount)
 }
 
 func (s *accountService) Credit(ctx context.Context, id string, amount int64) error {
-	if amount <= 0 {
-		return domain.ErrInvalidAmount
+	if err := validatePositiveAmount(amount); err != nil {
+		return err
 	}
 	return s.repo.Credit(ctx, id, amount)
 }
 
 func (s *accountService) Debit(ctx context.Context, id string, amount int64) error {
-	if amount <= 0 {
-		return domain.ErrInvalidAmount
+	if err := validatePositiveAmount(amount); err != nil {
+		return err
 	}
 	return s.repo.Debit(ctx, id, amount)
 }

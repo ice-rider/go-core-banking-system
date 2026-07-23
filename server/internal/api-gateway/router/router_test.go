@@ -69,11 +69,12 @@ func TestRouter_CORSHeaders(t *testing.T) {
 	r := newTestRouter()
 
 	req := httptest.NewRequest(http.MethodOptions, "/accounts", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
-	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "http://localhost:3000", w.Header().Get("Access-Control-Allow-Origin"))
 }
 
 func TestRouter_UnknownRoute(t *testing.T) {

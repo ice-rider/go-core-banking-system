@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
-	"strings"
+	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"go-core-banking-system/internal/transaction/domain"
 )
@@ -29,14 +31,8 @@ func NewTransactionService(repo domain.Repository, accountCli AccountClient, pub
 }
 
 func (s *transactionService) Transfer(ctx context.Context, input domain.TransferInput) (*domain.Transaction, error) {
-	if input.FromAccountID == input.ToAccountID {
-		return nil, domain.ErrSameAccount
-	}
-	if input.Amount <= 0 {
-		return nil, domain.ErrInvalidAmount
-	}
-	if input.IdempotencyKey == "" {
-		return nil, domain.ErrIdempotencyKeyRequired
+	if err := validateTransferInput(input); err != nil {
+		return nil, err
 	}
 
 	existing, err := s.repo.GetByIdempotencyKey(ctx, input.IdempotencyKey)
@@ -44,17 +40,7 @@ func (s *transactionService) Transfer(ctx context.Context, input domain.Transfer
 		return existing, nil
 	}
 
-	now := time.Now()
-	tx := &domain.Transaction{
-		ID:             uuid.New().String(),
-		FromAccountID:  input.FromAccountID,
-		ToAccountID:    input.ToAccountID,
-		Amount:         input.Amount,
-		Status:         domain.TxStatusPending,
-		IdempotencyKey: input.IdempotencyKey,
-		CreatedAt:      now,
-		UpdatedAt:      now,
-	}
+	tx := s.createTransaction(input)
 
 	if err := s.repo.Create(ctx, tx); err != nil {
 		if isUniqueViolation(err) {
@@ -64,16 +50,49 @@ func (s *transactionService) Transfer(ctx context.Context, input domain.Transfer
 	}
 
 	if err := s.executeSaga(ctx, tx); err != nil {
-		_ = s.repo.UpdateStatus(ctx, tx.ID, domain.TxStatusFailed)
+		s.updateStatus(ctx, tx.ID, domain.TxStatusFailed)
 		tx.Status = domain.TxStatusFailed
 		s.publishEvent(tx, domain.EventTransactionFailed)
 		return tx, err
 	}
 
-	_ = s.repo.UpdateStatus(ctx, tx.ID, domain.TxStatusCompleted)
+	s.updateStatus(ctx, tx.ID, domain.TxStatusCompleted)
 	tx.Status = domain.TxStatusCompleted
 	s.publishEvent(tx, domain.EventTransactionCompleted)
 	return tx, nil
+}
+
+func validateTransferInput(input domain.TransferInput) error {
+	if input.FromAccountID == input.ToAccountID {
+		return domain.ErrSameAccount
+	}
+	if input.Amount <= 0 {
+		return domain.ErrInvalidAmount
+	}
+	if input.IdempotencyKey == "" {
+		return domain.ErrIdempotencyKeyRequired
+	}
+	return nil
+}
+
+func (s *transactionService) createTransaction(input domain.TransferInput) *domain.Transaction {
+	now := time.Now()
+	return &domain.Transaction{
+		ID:             uuid.New().String(),
+		FromAccountID:  input.FromAccountID,
+		ToAccountID:    input.ToAccountID,
+		Amount:         input.Amount,
+		Status:         domain.TxStatusPending,
+		IdempotencyKey: input.IdempotencyKey,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+}
+
+func (s *transactionService) updateStatus(ctx context.Context, txID string, status domain.TransactionStatus) {
+	if err := s.repo.UpdateStatus(ctx, txID, status); err != nil {
+		slog.Error("failed to update transaction status", "tx_id", txID, "error", err)
+	}
 }
 
 func (s *transactionService) executeSaga(ctx context.Context, tx *domain.Transaction) error {
@@ -82,17 +101,29 @@ func (s *transactionService) executeSaga(ctx context.Context, tx *domain.Transac
 	}
 
 	if err := s.accountCli.Credit(ctx, tx.ToAccountID, tx.Amount); err != nil {
-		_ = s.accountCli.CancelReservation(ctx, tx.FromAccountID, tx.Amount)
+		s.compensateCancelReservation(ctx, tx)
 		return err
 	}
 
 	if err := s.accountCli.CommitReservation(ctx, tx.FromAccountID, tx.Amount); err != nil {
-		_ = s.accountCli.CancelReservation(ctx, tx.FromAccountID, tx.Amount)
-		_ = s.accountCli.Debit(ctx, tx.ToAccountID, tx.Amount)
+		s.compensateFull(ctx, tx)
 		return err
 	}
 
 	return nil
+}
+
+func (s *transactionService) compensateCancelReservation(ctx context.Context, tx *domain.Transaction) {
+	if err := s.accountCli.CancelReservation(ctx, tx.FromAccountID, tx.Amount); err != nil {
+		slog.Error("compensation failed", "tx_id", tx.ID, "step", "cancel_reservation", "error", err)
+	}
+}
+
+func (s *transactionService) compensateFull(ctx context.Context, tx *domain.Transaction) {
+	s.compensateCancelReservation(ctx, tx)
+	if err := s.accountCli.Debit(ctx, tx.ToAccountID, tx.Amount); err != nil {
+		slog.Error("compensation failed", "tx_id", tx.ID, "step", "debit", "error", err)
+	}
 }
 
 func (s *transactionService) GetByID(ctx context.Context, id string) (*domain.Transaction, error) {
@@ -103,8 +134,11 @@ func isUniqueViolation(err error) bool {
 	if err == nil {
 		return false
 	}
-	msg := err.Error()
-	return strings.Contains(msg, "unique_violation") || strings.Contains(msg, "duplicate key")
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23505"
+	}
+	return false
 }
 
 func (s *transactionService) publishEvent(tx *domain.Transaction, eventType domain.EventType) {

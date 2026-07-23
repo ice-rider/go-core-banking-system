@@ -30,6 +30,15 @@ func NewHandler(ac AccountClient, tc TransactionClient, v *validator.Validator) 
 	return &Handler{accountClient: ac, transactionClient: tc, validator: v}
 }
 
+func extractID(c *gin.Context) (string, bool) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gw_errors.ErrorResponse{Error: "id is required", Code: "VALIDATION_ERROR"})
+		return "", false
+	}
+	return id, true
+}
+
 func (h *Handler) CreateAccount(c *gin.Context) {
 	var req CreateAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -53,9 +62,8 @@ func (h *Handler) CreateAccount(c *gin.Context) {
 }
 
 func (h *Handler) GetAccount(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gw_errors.ErrorResponse{Error: "id is required", Code: "VALIDATION_ERROR"})
+	id, ok := extractID(c)
+	if !ok {
 		return
 	}
 
@@ -70,9 +78,8 @@ func (h *Handler) GetAccount(c *gin.Context) {
 }
 
 func (h *Handler) BlockAccount(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gw_errors.ErrorResponse{Error: "id is required", Code: "VALIDATION_ERROR"})
+	id, ok := extractID(c)
+	if !ok {
 		return
 	}
 
@@ -87,9 +94,8 @@ func (h *Handler) BlockAccount(c *gin.Context) {
 }
 
 func (h *Handler) UnblockAccount(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gw_errors.ErrorResponse{Error: "id is required", Code: "VALIDATION_ERROR"})
+	id, ok := extractID(c)
+	if !ok {
 		return
 	}
 
@@ -104,9 +110,8 @@ func (h *Handler) UnblockAccount(c *gin.Context) {
 }
 
 func (h *Handler) CloseAccount(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gw_errors.ErrorResponse{Error: "id is required", Code: "VALIDATION_ERROR"})
+	id, ok := extractID(c)
+	if !ok {
 		return
 	}
 
@@ -143,9 +148,8 @@ func (h *Handler) CreateTransfer(c *gin.Context) {
 }
 
 func (h *Handler) GetTransaction(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gw_errors.ErrorResponse{Error: "id is required", Code: "VALIDATION_ERROR"})
+	id, ok := extractID(c)
+	if !ok {
 		return
 	}
 
