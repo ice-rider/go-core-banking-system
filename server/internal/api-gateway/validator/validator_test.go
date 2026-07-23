@@ -226,3 +226,53 @@ func TestValidator_NilInput(t *testing.T) {
 		assert.NotNil(t, errs)
 	})
 }
+
+func TestValidate_MinCharacters(t *testing.T) {
+	type TestStruct struct {
+		Name string `validate:"min=5"`
+	}
+	v := New()
+	errs := v.Validate(TestStruct{Name: "ab"})
+	require.Len(t, errs, 1)
+	assert.Contains(t, errs[0].Message, "at least 5")
+}
+
+func TestValidate_MaxCharacters(t *testing.T) {
+	type TestStruct struct {
+		Name string `validate:"max=3"`
+	}
+	v := New()
+	errs := v.Validate(TestStruct{Name: "abcd"})
+	require.Len(t, errs, 1)
+	assert.Contains(t, errs[0].Message, "at most 3")
+}
+
+func TestValidate_UUID(t *testing.T) {
+	type TestStruct struct {
+		ID string `validate:"uuid"`
+	}
+	v := New()
+	errs := v.Validate(TestStruct{ID: "not-a-uuid"})
+	require.Len(t, errs, 1)
+	assert.Contains(t, errs[0].Message, "valid UUID")
+}
+
+func TestValidate_GT(t *testing.T) {
+	type TestStruct struct {
+		Amount int64 `validate:"gt=0"`
+	}
+	v := New()
+	errs := v.Validate(TestStruct{Amount: 0})
+	require.Len(t, errs, 1)
+	assert.Contains(t, errs[0].Message, "greater than 0")
+}
+
+func TestValidate_DefaultMessage(t *testing.T) {
+	type TestStruct struct {
+		Email string `validate:"email"`
+	}
+	v := New()
+	errs := v.Validate(TestStruct{Email: "not-an-email"})
+	require.Len(t, errs, 1)
+	assert.Contains(t, errs[0].Message, "failed validation")
+}

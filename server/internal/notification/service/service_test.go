@@ -122,6 +122,16 @@ func TestGetByAccountID_Success(t *testing.T) {
 	assert.Equal(t, expected, result)
 }
 
+func TestHandleTransactionEvent_UnknownType(t *testing.T) {
+	repo := &mocks.MockNotificationRepository{}
+	svc := NewNotificationService(repo)
+
+	event := `{"type":"unknown.event","data":{}}`
+	err := svc.HandleTransactionEvent([]byte(event))
+
+	require.NoError(t, err)
+}
+
 func TestMarkAsRead_Success(t *testing.T) {
 	repo := &mocks.MockNotificationRepository{}
 	svc := NewNotificationService(repo)

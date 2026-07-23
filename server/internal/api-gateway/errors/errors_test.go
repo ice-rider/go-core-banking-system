@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -122,4 +123,14 @@ func TestMapError(t *testing.T) {
 		require.NotEmpty(t, resp.Error)
 		require.NotEmpty(t, resp.Code)
 	})
+}
+
+func TestIsDomainError_True(t *testing.T) {
+	err := pkgerrors.ErrAccountNotFound
+	assert.True(t, IsDomainError(err))
+}
+
+func TestIsDomainError_False(t *testing.T) {
+	err := errors.New("some random error")
+	assert.False(t, IsDomainError(err))
 }

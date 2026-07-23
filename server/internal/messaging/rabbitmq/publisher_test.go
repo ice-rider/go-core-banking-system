@@ -85,6 +85,28 @@ func TestNewPublisher_Success(t *testing.T) {
 	assert.Equal(t, c, p.conn)
 }
 
+func TestNewPublisher_DefaultChannelError(t *testing.T) {
+	conn := &mockConnection{
+		channelFunc: func() (*amqp.Channel, error) {
+			return nil, errors.New("channel error")
+		},
+	}
+	restore := setupPublisherMockDialer(func(url string) (AMQPConnection, error) {
+		return conn, nil
+	})
+	defer restore()
+
+	c, err := NewConnection("amqp://guest:guest@localhost:5672/")
+	require.NoError(t, err)
+
+	p := NewPublisher(c, "test-exchange")
+
+	err = p.Publish(context.Background(), "routing.key", []byte("data"))
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to open channel")
+}
+
 func TestPublish_Success(t *testing.T) {
 	mockCh := &mockPublisherChannel{}
 

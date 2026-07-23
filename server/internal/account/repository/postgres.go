@@ -4,16 +4,16 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"go-core-banking-system/internal/account/domain"
+	"go-core-banking-system/pkg/db"
 )
 
 type postgresRepo struct {
-	pool *pgxpool.Pool
+	pool db.Pool
 }
 
-func NewPostgresRepo(pool *pgxpool.Pool) domain.Repository {
+func NewPostgresRepo(pool db.Pool) domain.Repository {
 	return &postgresRepo{pool: pool}
 }
 
