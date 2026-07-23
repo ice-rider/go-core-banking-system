@@ -357,6 +357,16 @@ func TestGetByAccountID_MultipleNotifications(t *testing.T) {
 	}
 }
 
+func TestHandleTransactionEvent_UnknownType(t *testing.T) {
+	repo := &mocks.MockNotificationRepository{}
+	svc := NewNotificationService(repo)
+
+	event := `{"type":"unknown.event","data":{}}`
+	err := svc.HandleTransactionEvent([]byte(event))
+
+	require.NoError(t, err)
+}
+
 // ──────────────────────────────────────────────────────
 // MarkAsRead
 // ──────────────────────────────────────────────────────
