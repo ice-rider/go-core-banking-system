@@ -18,6 +18,7 @@ import (
 	"go-core-banking-system/internal/transaction/handler"
 	"go-core-banking-system/internal/transaction/repository"
 	"go-core-banking-system/internal/transaction/service"
+	"go-core-banking-system/pkg/observability"
 	"go-core-banking-system/pkg/proto/account"
 	"go-core-banking-system/pkg/proto/transaction"
 )
@@ -30,6 +31,17 @@ func main() {
 	dbName := getEnv("DB_NAME", "transaction_db")
 	grpcPort := getEnv("GRPC_PORT", "9002")
 	accountAddr := getEnv("ACCOUNT_SERVICE_ADDR", "localhost:9001")
+	otlpEndpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+
+	shutdown, err := observability.Init("transaction-service", otlpEndpoint)
+	if err != nil {
+		log.Printf("warning: observability init failed: %v", err)
+	}
+	if shutdown != nil {
+		defer func() {
+			_ = shutdown(context.Background())
+		}()
+	}
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		dbUser, dbPass, dbHost, dbPort, dbName)
@@ -58,7 +70,10 @@ func main() {
 		log.Fatalf("failed to ping database: %v", err)
 	}
 
-	conn, err := grpc.NewClient(accountAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(accountAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(observability.ClientStatsHandler()),
+	)
 	if err != nil {
 		log.Fatalf("failed to connect to account service: %v", err)
 	}
@@ -76,7 +91,12 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	unaryInterceptor, streamInterceptor := observability.GRPCServerInterceptors()
+	grpcServer := grpc.NewServer(
+		grpc.StatsHandler(observability.ServerStatsHandler()),
+		grpc.ChainUnaryInterceptor(unaryInterceptor),
+		grpc.ChainStreamInterceptor(streamInterceptor),
+	)
 	transaction.RegisterTransactionServiceServer(grpcServer, grpcHandler)
 
 	log.Printf("Transaction Service listening on :%s", grpcPort)
