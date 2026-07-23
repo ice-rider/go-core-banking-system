@@ -51,6 +51,7 @@ func (s *transactionService) Transfer(ctx context.Context, input domain.Transfer
 
 	if err := s.executeSaga(ctx, tx); err != nil {
 		s.updateStatus(ctx, tx.ID, domain.TxStatusFailed)
+		tx.Status = domain.TxStatusFailed
 		s.publishEvent(tx, domain.EventTransactionFailed)
 		return tx, err
 	}
