@@ -14,16 +14,16 @@ import (
 )
 
 type mockAccountService struct {
-	CreateFunc             func(ctx context.Context, input domain.CreateAccountInput) (*domain.Account, error)
-	GetByIDFunc            func(ctx context.Context, id string) (*domain.Account, error)
-	BlockFunc              func(ctx context.Context, id string) error
-	UnblockFunc            func(ctx context.Context, id string) error
-	CloseFunc              func(ctx context.Context, id string) error
-	ReserveFunc            func(ctx context.Context, id string, amount int64) error
-	CreditFunc             func(ctx context.Context, id string, amount int64) error
-	DebitFunc              func(ctx context.Context, id string, amount int64) error
-	CommitReservationFunc  func(ctx context.Context, id string, amount int64) error
-	CancelReservationFunc  func(ctx context.Context, id string, amount int64) error
+	CreateFunc            func(ctx context.Context, input domain.CreateAccountInput) (*domain.Account, error)
+	GetByIDFunc           func(ctx context.Context, id string) (*domain.Account, error)
+	BlockFunc             func(ctx context.Context, id string) error
+	UnblockFunc           func(ctx context.Context, id string) error
+	CloseFunc             func(ctx context.Context, id string) error
+	ReserveFunc           func(ctx context.Context, id string, amount int64) error
+	CreditFunc            func(ctx context.Context, id string, amount int64) error
+	DebitFunc             func(ctx context.Context, id string, amount int64) error
+	CommitReservationFunc func(ctx context.Context, id string, amount int64) error
+	CancelReservationFunc func(ctx context.Context, id string, amount int64) error
 }
 
 func (m *mockAccountService) Create(ctx context.Context, input domain.CreateAccountInput) (*domain.Account, error) {
