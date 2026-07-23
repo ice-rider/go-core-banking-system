@@ -34,9 +34,9 @@ type mockServerStream struct {
 func (m *mockServerStream) SetHeader(metadata.MD) error  { return nil }
 func (m *mockServerStream) SendHeader(metadata.MD) error { return nil }
 func (m *mockServerStream) SetTrailer(metadata.MD)       {}
-func (m *mockServerStream) Context() context.Context      { return m.ctx }
-func (m *mockServerStream) SendMsg(interface{}) error     { return nil }
-func (m *mockServerStream) RecvMsg(interface{}) error     { return nil }
+func (m *mockServerStream) Context() context.Context     { return m.ctx }
+func (m *mockServerStream) SendMsg(interface{}) error    { return nil }
+func (m *mockServerStream) RecvMsg(interface{}) error    { return nil }
 
 type mockClientStream struct {
 	ctx context.Context
@@ -44,10 +44,10 @@ type mockClientStream struct {
 
 func (m *mockClientStream) Header() (metadata.MD, error) { return nil, nil }
 func (m *mockClientStream) Trailer() metadata.MD         { return nil }
-func (m *mockClientStream) CloseSend() error              { return nil }
-func (m *mockClientStream) Context() context.Context      { return m.ctx }
-func (m *mockClientStream) SendMsg(interface{}) error     { return nil }
-func (m *mockClientStream) RecvMsg(interface{}) error     { return nil }
+func (m *mockClientStream) CloseSend() error             { return nil }
+func (m *mockClientStream) Context() context.Context     { return m.ctx }
+func (m *mockClientStream) SendMsg(interface{}) error    { return nil }
+func (m *mockClientStream) RecvMsg(interface{}) error    { return nil }
 
 func mockUnaryInvoker(called *mockInvokerCalled) grpc.UnaryInvoker {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
