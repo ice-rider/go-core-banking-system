@@ -21,10 +21,11 @@ type AccountClient interface {
 type transactionService struct {
 	repo       domain.Repository
 	accountCli AccountClient
+	publisher  domain.EventPublisher
 }
 
-func NewTransactionService(repo domain.Repository, accountCli AccountClient) domain.Service {
-	return &transactionService{repo: repo, accountCli: accountCli}
+func NewTransactionService(repo domain.Repository, accountCli AccountClient, publisher domain.EventPublisher) domain.Service {
+	return &transactionService{repo: repo, accountCli: accountCli, publisher: publisher}
 }
 
 func (s *transactionService) Transfer(ctx context.Context, input domain.TransferInput) (*domain.Transaction, error) {
@@ -64,11 +65,14 @@ func (s *transactionService) Transfer(ctx context.Context, input domain.Transfer
 
 	if err := s.executeSaga(ctx, tx); err != nil {
 		_ = s.repo.UpdateStatus(ctx, tx.ID, domain.TxStatusFailed)
+		tx.Status = domain.TxStatusFailed
+		s.publishEvent(tx, domain.EventTransactionFailed)
 		return tx, err
 	}
 
 	_ = s.repo.UpdateStatus(ctx, tx.ID, domain.TxStatusCompleted)
 	tx.Status = domain.TxStatusCompleted
+	s.publishEvent(tx, domain.EventTransactionCompleted)
 	return tx, nil
 }
 
@@ -101,4 +105,23 @@ func isUniqueViolation(err error) bool {
 	}
 	msg := err.Error()
 	return strings.Contains(msg, "unique_violation") || strings.Contains(msg, "duplicate key")
+}
+
+func (s *transactionService) publishEvent(tx *domain.Transaction, eventType domain.EventType) {
+	if s.publisher == nil {
+		return
+	}
+
+	event := &domain.TransactionEvent{
+		TransactionID:  tx.ID,
+		Type:           eventType,
+		Status:         tx.Status,
+		FromAccountID:  tx.FromAccountID,
+		ToAccountID:    tx.ToAccountID,
+		Amount:         tx.Amount,
+		IdempotencyKey: tx.IdempotencyKey,
+		Timestamp:      time.Now(),
+	}
+
+	_ = s.publisher.PublishTransactionEvent(event)
 }
