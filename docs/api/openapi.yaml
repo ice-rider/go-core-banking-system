@@ -1,0 +1,349 @@
+openapi: 3.0.3
+info:
+  title: Mini Bank API
+  description: |
+    REST API for Mini Bank microservices system.
+    
+    ## Architecture
+    - **API Gateway** (port 8080) — HTTP/REST entry point
+    - **Account Service** (gRPC :9001) — account management
+    - **Transaction Service** (gRPC :9002) — money transfers via Saga orchestrator
+    
+    ## Authentication
+    Currently no authentication (portfolio project).
+    
+    ## Error Format
+    All errors return JSON:
+    ```json
+    {"error": "description", "code": "ERROR_CODE"}
+    ```
+    
+    Error codes: `NOT_FOUND`, `VALIDATION_ERROR`, `CONFLICT`, `INTERNAL_ERROR`
+  version: 1.0.0
+  contact:
+    name: Anisimov Gleb
+    url: https://github.com/ice-rider
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      tags: [System]
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: api-gateway
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      tags: [System]
+      responses:
+        '200':
+          description: Prometheus metrics text
+
+  /accounts:
+    post:
+      summary: Create a new account
+      tags: [Accounts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [owner_name]
+              properties:
+                owner_name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  example: "John Doe"
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /accounts/{id}:
+    get:
+      summary: Get account by ID
+      tags: [Accounts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Account found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /accounts/{id}/block:
+    post:
+      summary: Block an account
+      tags: [Accounts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Account blocked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: account blocked
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /accounts/{id}/unblock:
+    post:
+      summary: Unblock an account
+      tags: [Accounts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Account unblocked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: account unblocked
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /accounts/{id}/close:
+    post:
+      summary: Close an account
+      tags: [Accounts]
+      description: Account must have zero balance to close.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Account closed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: account closed
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Balance not zero or account already closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /transfers:
+    post:
+      summary: Create a money transfer
+      tags: [Transfers]
+      description: |
+        Transfers money between two accounts using Saga pattern:
+        1. Reserve funds on sender
+        2. Credit funds to receiver
+        3. Commit reservation on sender
+        
+        If any step fails, compensating transactions are executed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from_account_id, to_account_id, amount, idempotency_key]
+              properties:
+                from_account_id:
+                  type: string
+                  format: uuid
+                to_account_id:
+                  type: string
+                  format: uuid
+                amount:
+                  type: integer
+                  format: int64
+                  minimum: 1
+                  description: Amount in smallest currency unit (e.g., cents)
+                idempotency_key:
+                  type: string
+                  format: uuid
+                  description: Unique key for idempotent requests
+      responses:
+        '201':
+          description: Transfer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Insufficient funds, same account, or idempotency key used
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /transfers/{id}:
+    get:
+      summary: Get transaction by ID
+      tags: [Transfers]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transaction found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  schemas:
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        owner_name:
+          type: string
+        balance:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [ACTIVE, BLOCKED, CLOSED]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        from_account_id:
+          type: string
+          format: uuid
+        to_account_id:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, FAILED]
+        idempotency_key:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [NOT_FOUND, VALIDATION_ERROR, CONFLICT, INTERNAL_ERROR]
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "account not found"
+            code: "NOT_FOUND"
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "owner name is required"
+            code: "VALIDATION_ERROR"
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "insufficient funds"
+            code: "CONFLICT"
