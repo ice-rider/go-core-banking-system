@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,7 +42,10 @@ func (s *accountService) Create(ctx context.Context, input domain.CreateAccountI
 func (s *accountService) GetByID(ctx context.Context, id string) (*domain.Account, error) {
 	account, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return nil, domain.ErrAccountNotFound
+		if errors.Is(err, domain.ErrAccountNotFound) {
+			return nil, domain.ErrAccountNotFound
+		}
+		return nil, err
 	}
 	return account, nil
 }
@@ -87,9 +91,15 @@ func (s *accountService) Debit(ctx context.Context, id string, amount int64) err
 }
 
 func (s *accountService) CommitReservation(ctx context.Context, id string, amount int64) error {
+	if err := validatePositiveAmount(amount); err != nil {
+		return err
+	}
 	return s.repo.CommitReservation(ctx, id, amount)
 }
 
 func (s *accountService) CancelReservation(ctx context.Context, id string, amount int64) error {
+	if err := validatePositiveAmount(amount); err != nil {
+		return err
+	}
 	return s.repo.CancelReservation(ctx, id, amount)
 }
