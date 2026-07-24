@@ -20,6 +20,7 @@ import (
 	"go-core-banking-system/pkg/observability"
 	"go-core-banking-system/pkg/proto/account"
 	"go-core-banking-system/pkg/proto/transaction"
+	"go-core-banking-system/pkg/resilience"
 )
 
 func main() {
@@ -69,8 +70,13 @@ func main() {
 		log.Fatalf("failed to ping database: %v", err)
 	}
 
+	accountCB := resilience.New(resilience.DefaultConfig("account-service"))
+
 	conn, err := grpc.NewClient(accountAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor(
+			resilience.UnaryClientInterceptor(accountCB, 5*time.Second),
+		),
 	)
 	if err != nil {
 		log.Fatalf("failed to connect to account service: %v", err)
