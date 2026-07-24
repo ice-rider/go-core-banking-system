@@ -8,5 +8,6 @@ coverage:
         target: auto
 
 ignore:
-  - "pkg/**"
-  - "cmd/**"
+  - "server/cmd/**/*"
+  - "server/pkg/**/*"
+  - "server/internal/*/mocks/**/*"
