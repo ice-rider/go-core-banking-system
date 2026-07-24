@@ -3,19 +3,16 @@ package observability
 import (
 	"context"
 
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/stats"
 )
 
 func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if globalTracer != nil {
-			ctx, span := globalTracer.Start(ctx, info.FullMethod)
+			var span trace.Span
+			ctx, span = globalTracer.Start(ctx, info.FullMethod)
 			defer span.End()
-			if md, ok := metadata.FromIncomingContext(ctx); ok {
-				_ = md
-			}
 		}
 		return handler(ctx, req)
 	}
@@ -57,12 +54,4 @@ func GRPCServerInterceptors() (grpc.UnaryServerInterceptor, grpc.StreamServerInt
 
 func GRPCClientInterceptors() (grpc.UnaryClientInterceptor, grpc.StreamClientInterceptor) {
 	return UnaryClientInterceptor(), StreamClientInterceptor()
-}
-
-func ServerStatsHandler() stats.Handler {
-	return nil
-}
-
-func ClientStatsHandler() stats.Handler {
-	return nil
 }

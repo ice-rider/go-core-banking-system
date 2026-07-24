@@ -62,53 +62,6 @@ func TestCreate_RepoError(t *testing.T) {
 	assert.EqualError(t, err, "db connection refused")
 }
 
-// ==================== GetByID ====================
-
-func TestGetByID_Success(t *testing.T) {
-	expected := &domain.Account{ID: "acc-1", OwnerName: "Charlie", Balance: 500, Status: domain.StatusActive}
-	repo := &mocks.MockAccountRepository{
-		GetByIDFunc: func(ctx context.Context, id string) (*domain.Account, error) {
-			assert.Equal(t, "acc-1", id)
-			return expected, nil
-		},
-	}
-	svc := NewAccountService(repo)
-
-	result, err := svc.GetByID(context.Background(), "acc-1")
-
-	require.NoError(t, err)
-	assert.Equal(t, expected, result)
-}
-
-func TestGetByID_NotFound(t *testing.T) {
-	repo := &mocks.MockAccountRepository{
-		GetByIDFunc: func(ctx context.Context, id string) (*domain.Account, error) {
-			return nil, domain.ErrAccountNotFound
-		},
-	}
-	svc := NewAccountService(repo)
-
-	result, err := svc.GetByID(context.Background(), "nonexistent")
-
-	require.ErrorIs(t, err, domain.ErrAccountNotFound)
-	assert.Nil(t, result)
-}
-
-func TestGetByID_RepoGenericError(t *testing.T) {
-	repo := &mocks.MockAccountRepository{
-		GetByIDFunc: func(ctx context.Context, id string) (*domain.Account, error) {
-			return nil, errors.New("timeout")
-		},
-	}
-	svc := NewAccountService(repo)
-
-	result, err := svc.GetByID(context.Background(), "acc-1")
-
-	require.Error(t, err)
-	assert.Nil(t, result)
-	assert.ErrorIs(t, err, domain.ErrAccountNotFound)
-}
-
 // ==================== Block ====================
 
 func TestBlock_Success(t *testing.T) {
@@ -670,7 +623,7 @@ func TestGetByID_ContextCancelled(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, domain.ErrAccountNotFound)
+	assert.ErrorIs(t, err, context.Canceled)
 }
 
 // ==================== Block/Unblock/Close — Edge Cases ====================

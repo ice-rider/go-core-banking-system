@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,20 +16,21 @@ import (
 	"go-core-banking-system/internal/transaction/handler"
 	"go-core-banking-system/internal/transaction/repository"
 	"go-core-banking-system/internal/transaction/service"
+	"go-core-banking-system/pkg/app"
 	"go-core-banking-system/pkg/observability"
 	"go-core-banking-system/pkg/proto/account"
 	"go-core-banking-system/pkg/proto/transaction"
 )
 
 func main() {
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "bank")
-	dbPass := getEnv("DB_PASSWORD", "bank_secret")
-	dbName := getEnv("DB_NAME", "transaction_db")
-	grpcPort := getEnv("GRPC_PORT", "9002")
-	accountAddr := getEnv("ACCOUNT_SERVICE_ADDR", "localhost:9001")
-	otlpEndpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+	dbHost := app.GetEnv("DB_HOST", "localhost")
+	dbPort := app.GetEnv("DB_PORT", "5432")
+	dbUser := app.GetEnv("DB_USER", "bank")
+	dbPass := app.GetEnv("DB_PASSWORD", "bank_secret")
+	dbName := app.GetEnv("DB_NAME", "transaction_db")
+	grpcPort := app.GetEnv("GRPC_PORT", "9002")
+	accountAddr := app.GetEnv("ACCOUNT_SERVICE_ADDR", "localhost:9001")
+	otlpEndpoint := app.GetEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 
 	shutdown, err := observability.Init("transaction-service", otlpEndpoint)
 	if err != nil {
@@ -48,7 +47,7 @@ func main() {
 
 	ctx := context.Background()
 
-	runMigrations(dsn, "file://migrations/transaction")
+	app.RunMigrations(dsn, "file://migrations/transaction")
 
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
@@ -72,7 +71,6 @@ func main() {
 
 	conn, err := grpc.NewClient(accountAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithStatsHandler(observability.ClientStatsHandler()),
 	)
 	if err != nil {
 		log.Fatalf("failed to connect to account service: %v", err)
@@ -93,7 +91,6 @@ func main() {
 
 	unaryInterceptor, streamInterceptor := observability.GRPCServerInterceptors()
 	grpcServer := grpc.NewServer(
-		grpc.StatsHandler(observability.ServerStatsHandler()),
 		grpc.ChainUnaryInterceptor(unaryInterceptor),
 		grpc.ChainStreamInterceptor(streamInterceptor),
 	)
@@ -132,25 +129,4 @@ func (c *grpcAccountClient) CommitReservation(ctx context.Context, id string, am
 func (c *grpcAccountClient) CancelReservation(ctx context.Context, id string, amount int64) error {
 	_, err := c.client.CancelReservation(ctx, &account.CancelReservationRequest{Id: id, Amount: amount})
 	return err
-}
-
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
-}
-
-func runMigrations(dsn, migrationsPath string) {
-	m, err := migrate.New(migrationsPath, dsn)
-	if err != nil {
-		log.Fatalf("failed to create migrate instance: %v", err)
-	}
-	defer func() { _, _ = m.Close() }()
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		log.Fatalf("failed to run migrations: %v", err)
-	}
-
-	log.Println("Migrations applied successfully")
 }

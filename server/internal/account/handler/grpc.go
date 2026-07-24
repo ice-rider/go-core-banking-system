@@ -2,9 +2,6 @@ package handler
 
 import (
 	"context"
-	"net/http"
-
-	"github.com/gin-gonic/gin"
 
 	"go-core-banking-system/internal/account/domain"
 	"go-core-banking-system/pkg/proto/account"
@@ -17,14 +14,6 @@ type AccountGRPCHandler struct {
 
 func NewAccountGRPCHandler(svc domain.Service) *AccountGRPCHandler {
 	return &AccountGRPCHandler{svc: svc}
-}
-
-func (h *AccountGRPCHandler) HealthCheck(c *gin.Context) {
-	if c.Request.Method != http.MethodGet {
-		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "method not allowed"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "account-service"})
 }
 
 func (h *AccountGRPCHandler) Create(ctx context.Context, req *account.CreateAccountRequest) (*account.AccountResponse, error) {

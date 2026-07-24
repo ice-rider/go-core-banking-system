@@ -10,17 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func TracingMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		traceID := c.GetHeader("traceparent")
-		if traceID == "" {
-			traceID = "generated-" + c.ClientIP()
-		}
-		c.Set("trace_id", traceID)
-		c.Next()
-	}
-}
-
 func LoggingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()

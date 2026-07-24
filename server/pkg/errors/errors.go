@@ -18,33 +18,6 @@ var (
 	ErrSameAccount            = errors.New("cannot transfer to the same account")
 )
 
-var sentinelErrors = []error{
-	ErrAccountNotFound,
-	ErrAccountBlocked,
-	ErrAccountClosed,
-	ErrAccountNotActive,
-	ErrBalanceNotZero,
-	ErrInsufficientFunds,
-	ErrInvalidAmount,
-	ErrOwnerNameRequired,
-	ErrTransactionNotFound,
-	ErrIdempotencyKeyUsed,
-	ErrIdempotencyKeyRequired,
-	ErrSameAccount,
-}
-
-func IsDomainError(err error) bool {
-	if err == nil {
-		return false
-	}
-	for _, sentinel := range sentinelErrors {
-		if errors.Is(err, sentinel) {
-			return true
-		}
-	}
-	return false
-}
-
 func ToHTTPStatus(err error) (int, string) {
 	if err == nil {
 		return 200, ""

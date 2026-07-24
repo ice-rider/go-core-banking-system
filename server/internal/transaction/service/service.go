@@ -157,5 +157,7 @@ func (s *transactionService) publishEvent(tx *domain.Transaction, eventType doma
 		Timestamp:      time.Now(),
 	}
 
-	_ = s.publisher.PublishTransactionEvent(event)
+	if err := s.publisher.PublishTransactionEvent(event); err != nil {
+		slog.Error("failed to publish transaction event", "tx_id", tx.ID, "event_type", eventType, "error", err)
+	}
 }

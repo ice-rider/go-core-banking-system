@@ -369,16 +369,6 @@ func TestUnaryServerInterceptor_MetadataExtraction(t *testing.T) {
 	assert.Contains(t, keys, "x-request-id")
 }
 
-func TestServerStatsHandler(t *testing.T) {
-	h := ServerStatsHandler()
-	assert.Nil(t, h)
-}
-
-func TestClientStatsHandler(t *testing.T) {
-	h := ClientStatsHandler()
-	assert.Nil(t, h)
-}
-
 func TestUnaryServerInterceptor_WithTracer(t *testing.T) {
 	shutdown, err := Init("test", "")
 	require.NoError(t, err)

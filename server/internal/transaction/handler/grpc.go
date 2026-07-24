@@ -2,9 +2,6 @@ package handler
 
 import (
 	"context"
-	"net/http"
-
-	"github.com/gin-gonic/gin"
 
 	"go-core-banking-system/internal/transaction/domain"
 	"go-core-banking-system/pkg/proto/transaction"
@@ -17,14 +14,6 @@ type TransactionGRPCHandler struct {
 
 func NewTransactionGRPCHandler(svc domain.Service) *TransactionGRPCHandler {
 	return &TransactionGRPCHandler{svc: svc}
-}
-
-func (h *TransactionGRPCHandler) HealthCheck(c *gin.Context) {
-	if c.Request.Method != http.MethodGet {
-		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "method not allowed"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "transaction-service"})
 }
 
 func (h *TransactionGRPCHandler) Transfer(ctx context.Context, req *transaction.TransferRequest) (*transaction.TransactionResponse, error) {

@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -17,18 +15,19 @@ import (
 	"go-core-banking-system/internal/account/handler"
 	"go-core-banking-system/internal/account/repository"
 	"go-core-banking-system/internal/account/service"
+	"go-core-banking-system/pkg/app"
 	"go-core-banking-system/pkg/observability"
 	"go-core-banking-system/pkg/proto/account"
 )
 
 func main() {
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "bank")
-	dbPass := getEnv("DB_PASSWORD", "bank_secret")
-	dbName := getEnv("DB_NAME", "account_db")
-	grpcPort := getEnv("GRPC_PORT", "9001")
-	otlpEndpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+	dbHost := app.GetEnv("DB_HOST", "localhost")
+	dbPort := app.GetEnv("DB_PORT", "5432")
+	dbUser := app.GetEnv("DB_USER", "bank")
+	dbPass := app.GetEnv("DB_PASSWORD", "bank_secret")
+	dbName := app.GetEnv("DB_NAME", "account_db")
+	grpcPort := app.GetEnv("GRPC_PORT", "9001")
+	otlpEndpoint := app.GetEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 
 	shutdown, err := observability.Init("account-service", otlpEndpoint)
 	if err != nil {
@@ -45,7 +44,7 @@ func main() {
 
 	ctx := context.Background()
 
-	runMigrations(dsn, "file://migrations/account")
+	app.RunMigrations(dsn, "file://migrations/account")
 
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
@@ -78,7 +77,6 @@ func main() {
 
 	unaryInterceptor, streamInterceptor := observability.GRPCServerInterceptors()
 	grpcServer := grpc.NewServer(
-		grpc.StatsHandler(observability.ServerStatsHandler()),
 		grpc.ChainUnaryInterceptor(unaryInterceptor),
 		grpc.ChainStreamInterceptor(streamInterceptor),
 	)
@@ -88,25 +86,4 @@ func main() {
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
-}
-
-func runMigrations(dsn, migrationsPath string) {
-	m, err := migrate.New(migrationsPath, dsn)
-	if err != nil {
-		log.Fatalf("failed to create migrate instance: %v", err)
-	}
-	defer func() { _, _ = m.Close() }()
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		log.Fatalf("failed to run migrations: %v", err)
-	}
-
-	log.Println("Migrations applied successfully")
-}
-
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
 }
