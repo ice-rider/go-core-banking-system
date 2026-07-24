@@ -11,6 +11,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type mockChannel struct {
+	exchangeDeclareFunc func(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error
+	queueDeclareFunc    func(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error)
+	queueBindFunc       func(name, key, exchange string, noWait bool, args amqp.Table) error
+}
+
+func (m *mockChannel) ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error {
+	if m.exchangeDeclareFunc != nil {
+		return m.exchangeDeclareFunc(name, kind, durable, autoDelete, internal, noWait, args)
+	}
+	return nil
+}
+
+func (m *mockChannel) QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error) {
+	if m.queueDeclareFunc != nil {
+		return m.queueDeclareFunc(name, durable, autoDelete, exclusive, noWait, args)
+	}
+	return amqp.Queue{Name: name}, nil
+}
+
+func (m *mockChannel) QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error {
+	if m.queueBindFunc != nil {
+		return m.queueBindFunc(name, key, exchange, noWait, args)
+	}
+	return nil
+}
+
 func TestDefaultDLQConfig(t *testing.T) {
 	cfg := DefaultDLQConfig("orders")
 
@@ -29,6 +56,92 @@ func TestNewDLQPublisher(t *testing.T) {
 
 	require.NotNil(t, dlq)
 	assert.Equal(t, cfg.Exchange, dlq.publisher.exchange)
+}
+
+func TestSetupExchange_Success(t *testing.T) {
+	mockCh := &mockChannel{}
+	cfg := DefaultDLQConfig("test-queue")
+	dlq := &DLQPublisher{config: cfg}
+
+	err := dlq.SetupExchange(mockCh)
+
+	require.NoError(t, err)
+}
+
+func TestSetupExchange_ExchangeDeclareError(t *testing.T) {
+	mockCh := &mockChannel{
+		exchangeDeclareFunc: func(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error {
+			return errors.New("exchange declare failed")
+		},
+	}
+	cfg := DefaultDLQConfig("test-queue")
+	dlq := &DLQPublisher{config: cfg}
+
+	err := dlq.SetupExchange(mockCh)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to declare DLQ exchange")
+}
+
+func TestSetupExchange_QueueDeclareError(t *testing.T) {
+	mockCh := &mockChannel{
+		queueDeclareFunc: func(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error) {
+			return amqp.Queue{}, errors.New("queue declare failed")
+		},
+	}
+	cfg := DefaultDLQConfig("test-queue")
+	dlq := &DLQPublisher{config: cfg}
+
+	err := dlq.SetupExchange(mockCh)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to declare DLQ queue")
+}
+
+func TestSetupExchange_QueueBindError(t *testing.T) {
+	mockCh := &mockChannel{
+		queueBindFunc: func(name, key, exchange string, noWait bool, args amqp.Table) error {
+			return errors.New("queue bind failed")
+		},
+	}
+	cfg := DefaultDLQConfig("test-queue")
+	dlq := &DLQPublisher{config: cfg}
+
+	err := dlq.SetupExchange(mockCh)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to bind DLQ queue")
+}
+
+func TestSetupExchange_VerifiesArgs(t *testing.T) {
+	var declaredExchange, declaredQueue, declaredRoutingKey string
+	mockCh := &mockChannel{
+		exchangeDeclareFunc: func(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error {
+			declaredExchange = name
+			assert.Equal(t, "direct", kind)
+			assert.True(t, durable)
+			return nil
+		},
+		queueDeclareFunc: func(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error) {
+			declaredQueue = name
+			assert.True(t, durable)
+			return amqp.Queue{Name: name}, nil
+		},
+		queueBindFunc: func(name, key, exchange string, noWait bool, args amqp.Table) error {
+			declaredRoutingKey = key
+			assert.Equal(t, exchange, declaredExchange)
+			return nil
+		},
+	}
+	cfg := DefaultDLQConfig("transactions")
+	dlq := &DLQPublisher{config: cfg}
+
+	err := dlq.SetupExchange(mockCh)
+
+	require.NoError(t, err)
+	assert.Equal(t, "transactions.dlq", declaredExchange)
+	assert.Equal(t, "transactions.dlq", declaredQueue)
+	assert.Equal(t, "transactions.dlq", declaredRoutingKey)
 }
 
 func TestDLQPublishWithRetry_Success(t *testing.T) {

@@ -8,6 +8,13 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+// Channel abstracts the amqp.Channel methods needed by DLQPublisher.
+type Channel interface {
+	ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error
+	QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error)
+	QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error
+}
+
 type DLQConfig struct {
 	Exchange   string
 	Queue      string
@@ -38,7 +45,7 @@ func NewDLQPublisher(conn *Connection, config DLQConfig) *DLQPublisher {
 	}
 }
 
-func (d *DLQPublisher) SetupExchange(channel *amqp.Channel) error {
+func (d *DLQPublisher) SetupExchange(channel Channel) error {
 	if err := channel.ExchangeDeclare(
 		d.config.Exchange,
 		"direct",
