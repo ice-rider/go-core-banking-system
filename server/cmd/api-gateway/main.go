@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -15,6 +16,7 @@ import (
 	"go-core-banking-system/internal/api-gateway/validator"
 	"go-core-banking-system/pkg/app"
 	"go-core-banking-system/pkg/observability"
+	"go-core-banking-system/pkg/resilience"
 	pb_account "go-core-banking-system/pkg/proto/account"
 	pb_transaction "go-core-banking-system/pkg/proto/transaction"
 )
@@ -35,8 +37,14 @@ func main() {
 		}()
 	}
 
+	accountCB := resilience.New(resilience.DefaultConfig("account-service"))
+	transactionCB := resilience.New(resilience.DefaultConfig("transaction-service"))
+
 	accountConn, err := grpc.NewClient(accountAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor(
+			resilience.UnaryClientInterceptor(accountCB, 5*time.Second),
+		),
 	)
 	if err != nil {
 		log.Fatalf("failed to connect to account service: %v", err)
@@ -45,6 +53,9 @@ func main() {
 
 	transactionConn, err := grpc.NewClient(transactionAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor(
+			resilience.UnaryClientInterceptor(transactionCB, 10*time.Second),
+		),
 	)
 	if err != nil {
 		log.Fatalf("failed to connect to transaction service: %v", err)
