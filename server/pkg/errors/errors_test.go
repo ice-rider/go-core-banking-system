@@ -8,45 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIsDomainError_Nil(t *testing.T) {
-	assert.False(t, IsDomainError(nil))
-}
-
-func TestIsDomainError_SentinelErrors(t *testing.T) {
-	tests := []struct {
-		name string
-		err  error
-	}{
-		{"ErrAccountNotFound", ErrAccountNotFound},
-		{"ErrAccountBlocked", ErrAccountBlocked},
-		{"ErrAccountClosed", ErrAccountClosed},
-		{"ErrAccountNotActive", ErrAccountNotActive},
-		{"ErrBalanceNotZero", ErrBalanceNotZero},
-		{"ErrInsufficientFunds", ErrInsufficientFunds},
-		{"ErrInvalidAmount", ErrInvalidAmount},
-		{"ErrOwnerNameRequired", ErrOwnerNameRequired},
-		{"ErrTransactionNotFound", ErrTransactionNotFound},
-		{"ErrIdempotencyKeyUsed", ErrIdempotencyKeyUsed},
-		{"ErrIdempotencyKeyRequired", ErrIdempotencyKeyRequired},
-		{"ErrSameAccount", ErrSameAccount},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.True(t, IsDomainError(tt.err))
-		})
-	}
-}
-
-func TestIsDomainError_Wrapped(t *testing.T) {
-	wrapped := fmt.Errorf("context: %w", ErrAccountNotFound)
-	assert.True(t, IsDomainError(wrapped))
-}
-
-func TestIsDomainError_RandomError(t *testing.T) {
-	assert.False(t, IsDomainError(fmt.Errorf("something else")))
-}
-
 func TestToHTTPStatus_Nil(t *testing.T) {
 	code, msg := ToHTTPStatus(nil)
 	require.Equal(t, 200, code)

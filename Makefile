@@ -21,6 +21,9 @@ lint:
 test:
 	cd server && go test -v -race ./...
 
+test-cover:
+	cd server && go test -race -coverprofile=cover.out $$(go list ./... | grep -v /mocks/) && go tool cover -func=cover.out | grep total
+
 test-integration:
 	cd server && go test -v -race -tags=integration ./...
 

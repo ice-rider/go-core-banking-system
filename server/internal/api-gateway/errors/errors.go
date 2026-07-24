@@ -22,7 +22,3 @@ func MapError(err error) (int, ErrorResponse) {
 		Code:  code,
 	}
 }
-
-func IsDomainError(err error) bool {
-	return pkgerrors.IsDomainError(err)
-}
