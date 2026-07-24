@@ -1,0 +1,25 @@
+{
+  "app": { "title": "Mini Bank" },
+  "nav": { "home": "Главная", "accounts": "Счета", "transfers": "Переводы" },
+  "accounts": {
+    "list": "Счета",
+    "create": "Новый счёт",
+    "owner_name": "Имя владельца",
+    "balance": "Баланс",
+    "status": "Статус",
+    "actions": "Действия",
+    "block": "Заблокировать",
+    "unblock": "Разблокировать",
+    "close": "Закрыть"
+  },
+  "transfers": {
+    "create": "Новый перевод",
+    "from": "Откуда",
+    "to": "Куда",
+    "amount": "Сумма",
+    "submit": "Отправить",
+    "success": "Перевод выполнен!",
+    "failed": "Перевод не удался"
+  },
+  "common": { "loading": "Загрузка...", "error": "Ошибка", "save": "Сохранить", "cancel": "Отмена", "back": "Назад" }
+}

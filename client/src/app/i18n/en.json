@@ -1,0 +1,25 @@
+{
+  "app": { "title": "Mini Bank" },
+  "nav": { "home": "Home", "accounts": "Accounts", "transfers": "Transfers" },
+  "accounts": {
+    "list": "Accounts",
+    "create": "Create Account",
+    "owner_name": "Owner Name",
+    "balance": "Balance",
+    "status": "Status",
+    "actions": "Actions",
+    "block": "Block",
+    "unblock": "Unblock",
+    "close": "Close"
+  },
+  "transfers": {
+    "create": "New Transfer",
+    "from": "From Account",
+    "to": "To Account",
+    "amount": "Amount",
+    "submit": "Send Money",
+    "success": "Transfer completed!",
+    "failed": "Transfer failed"
+  },
+  "common": { "loading": "Loading...", "error": "Error", "save": "Save", "cancel": "Cancel", "back": "Back" }
+}
