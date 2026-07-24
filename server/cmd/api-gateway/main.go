@@ -16,9 +16,9 @@ import (
 	"go-core-banking-system/internal/api-gateway/validator"
 	"go-core-banking-system/pkg/app"
 	"go-core-banking-system/pkg/observability"
-	"go-core-banking-system/pkg/resilience"
 	pb_account "go-core-banking-system/pkg/proto/account"
 	pb_transaction "go-core-banking-system/pkg/proto/transaction"
+	"go-core-banking-system/pkg/resilience"
 )
 
 func main() {

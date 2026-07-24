@@ -80,9 +80,9 @@ type mockClientStream struct {
 	grpc.ClientStream
 }
 
-func (m *mockClientStream) SendMsg(msg any) error   { return nil }
-func (m *mockClientStream) RecvMsg(msg any) error   { return nil }
-func (m *mockClientStream) CloseSend() error         { return nil }
+func (m *mockClientStream) SendMsg(msg any) error { return nil }
+func (m *mockClientStream) RecvMsg(msg any) error { return nil }
+func (m *mockClientStream) CloseSend() error      { return nil }
 
 func TestStreamClientInterceptor_Error(t *testing.T) {
 	cb := New(DefaultConfig("test"))
