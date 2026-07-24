@@ -1,0 +1,136 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Transfer Rate (per second)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(transfer_created_total[5m])",
+          "legendFormat": "created/s",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(transfer_failed_total[5m])",
+          "legendFormat": "failed/s",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": { "drawStyle": "line", "fillOpacity": 20, "lineWidth": 2 }
+        }
+      }
+    },
+    {
+      "title": "Transfer Success Rate (%)",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "100 * rate(transfer_created_total[5m]) / (rate(transfer_created_total[5m]) + rate(transfer_failed_total[5m]))",
+          "legendFormat": "Success %",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": { "steps": [{ "value": 0, "color": "red" }, { "value": 90, "color": "yellow" }, { "value": 99, "color": "green" }] }
+        }
+      }
+    },
+    {
+      "title": "Transfer Latency Distribution",
+      "type": "histogram",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(grpc_request_duration_seconds_bucket{grpc_service=\"banking.TransactionService\"}[5m])",
+          "legendFormat": "{{le}}",
+          "refId": "A",
+          "format": "heatmap"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "yAxis": { "unit": "s" }
+      }
+    },
+    {
+      "title": "Circuit Breaker State",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "gobreaker_state{name=~\"account-service|transaction-service\"}",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "0": { "text": "CLOSED", "color": "green" }, "1": { "text": "HALF-OPEN", "color": "yellow" }, "2": { "text": "OPEN", "color": "red" } } }]
+        }
+      }
+    },
+    {
+      "title": "gRPC Errors by Service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "rate(grpc_requests_total{grpc_code!=\"OK\"}[5m])",
+          "legendFormat": "{{grpc_service}} {{grpc_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": { "drawStyle": "bars", "fillOpacity": 80 }
+        }
+      }
+    },
+    {
+      "title": "DB Query Duration by Service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(db_query_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(db_query_duration_seconds_bucket[5m]))",
+          "legendFormat": "p50",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "fillOpacity": 10 }
+        }
+      }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["banking", "transfers"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "Mini Bank - Transfers",
+  "uid": "mini-bank-transfers",
+  "version": 1
+}
