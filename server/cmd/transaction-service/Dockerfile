@@ -14,6 +14,7 @@ FROM alpine:3.21
 RUN apk --no-cache add ca-certificates
 
 COPY --from=builder /bin/transaction-service /bin/transaction-service
+COPY --from=builder /app/migrations /migrations
 
 EXPOSE 9002
 

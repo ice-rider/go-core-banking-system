@@ -43,14 +43,16 @@ func main() {
 		}()
 	}
 
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+	migrateDSN := fmt.Sprintf("pgx5://%s:%s@%s:%s/%s?sslmode=disable",
+		dbUser, dbPass, dbHost, dbPort, dbName)
+	poolDSN := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		dbUser, dbPass, dbHost, dbPort, dbName)
 
 	ctx := context.Background()
 
-	app.RunMigrations(dsn, "file://migrations/transaction")
+	app.RunMigrations(migrateDSN, "file://migrations/transaction")
 
-	cfg, err := pgxpool.ParseConfig(dsn)
+	cfg, err := pgxpool.ParseConfig(poolDSN)
 	if err != nil {
 		log.Fatalf("failed to parse config: %v", err)
 	}

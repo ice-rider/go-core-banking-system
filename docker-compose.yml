@@ -1,6 +1,6 @@
 services:
   postgres-account:
-    image: postgres:18-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: bank
       POSTGRES_PASSWORD: bank_secret
@@ -14,7 +14,7 @@ services:
       - bank-network
 
   postgres-transaction:
-    image: postgres:18-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: bank
       POSTGRES_PASSWORD: bank_secret
@@ -46,7 +46,7 @@ services:
       - bank-network
 
   jaeger:
-    image: jaegertracing/all-in-one:1.65
+    image: jaegertracing/all-in-one:latest
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     networks:

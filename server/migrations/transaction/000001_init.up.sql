@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS transactions (
     id               UUID PRIMARY KEY,
-    from_account_id  UUID NOT NULL REFERENCES accounts(id),
-    to_account_id    UUID NOT NULL REFERENCES accounts(id),
+    from_account_id  UUID NOT NULL,
+    to_account_id    UUID NOT NULL,
     amount           BIGINT NOT NULL,
     status           VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     idempotency_key  VARCHAR(255) NOT NULL,
